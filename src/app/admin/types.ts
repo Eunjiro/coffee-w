@@ -1,5 +1,3 @@
-// src/app/admin/types.ts
-
 export interface Ingredient {
   id?: number;
   name: string;

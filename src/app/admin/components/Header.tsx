@@ -1,4 +1,4 @@
-import { Menu, Search, ShoppingCart, Bell } from "lucide-react";
+import { Menu } from "lucide-react";
 
 export default function Header({ setOpen }: { setOpen: (o: boolean) => void }) {
   return (

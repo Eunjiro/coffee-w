@@ -226,7 +226,7 @@ export default function InventoryPage() {
           </DialogContent>
         </Dialog>
 
-        
+
         {/* Stat Filters + Add Button */}
         {activeTab === "ingredients" && (
           <div className="flex flex-wrap items-center gap-4 mb-6">
@@ -241,43 +241,43 @@ export default function InventoryPage() {
               </span>
             </button>
 
-            {/* All Items */}
+            {/* aall Items */}
             <button
               onClick={() => setCategoryFilter("all")}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl ${categoryFilter === "all"
-                  ? "bg-[#B0A695] text-white"
-                  : "bg-white border border-gray-300 text-gray-700"
+                ? "bg-[#B0A695] text-white"
+                : "bg-white border border-gray-300 text-gray-700"
                 }`}
             >
               <ClipboardList className="w-6 h-6" />
               <span>All Items</span>
             </button>
 
-            {/* Disposable */}
+            {/* disposable */}
             <button
               onClick={() => setCategoryFilter("disposable")}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl ${categoryFilter === "disposable"
-                  ? "bg-[#776B5D] text-white"
-                  : "bg-white border border-gray-300 text-gray-700"
+                ? "bg-[#776B5D] text-white"
+                : "bg-white border border-gray-300 text-gray-700"
                 }`}
             >
               <ClipboardList className="w-6 h-6" />
               <span>Disposable</span>
             </button>
 
-            {/* Dairy */}
+            {/* dairy */}
             <button
               onClick={() => setCategoryFilter("dairy")}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl ${categoryFilter === "dairy"
-                  ? "bg-[#776B5D] text-white"
-                  : "bg-white border border-gray-300 text-gray-700"
+                ? "bg-[#776B5D] text-white"
+                : "bg-white border border-gray-300 text-gray-700"
                 }`}
             >
               <ClipboardList className="w-6 h-6" />
               <span>Dairy</span>
             </button>
 
-            {/* Add Ingredient Button */}
+            {/* add ing */}
             <button
               onClick={() => setShowAddModal(true)} // <- You'll use this to toggle a modal
               className="ml-auto flex items-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700"
@@ -289,7 +289,7 @@ export default function InventoryPage() {
         )}
 
 
-        {/* Tabs */}
+        {/* tabs */}
         <div className="flex border-b border-gray-300 mb-4">
           {["ingredients", "suppliers", "units"].map((tab) => (
             <button
@@ -305,7 +305,6 @@ export default function InventoryPage() {
           ))}
         </div>
 
-        {/* TABLES (unchanged except filteredIngredients) */}
         {loading ? (
           <p>Loading...</p>
         ) : (

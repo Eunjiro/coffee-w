@@ -23,7 +23,7 @@ export default function AdminMenuPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("all");
 
-  // Fetch menu items from API
+  // fetch menu items from API
   useEffect(() => {
     fetchMenu();
   }, []);
@@ -34,7 +34,7 @@ export default function AdminMenuPage() {
     setMenuItems(data);
   }
 
-  // Handle create or update menu
+  // fandle create or update menu
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const url = editing ? `/api/admin/menu/${editing.id}` : "/api/admin/menu";
@@ -68,7 +68,6 @@ export default function AdminMenuPage() {
   };
 
   const openEditModal = (item: MenuItem) => {
-    // Ensure each size has an ingredients array
     const sizesWithIngredients: Size[] = item.sizes.map((s) => ({
       ...s,
       ingredients: s.ingredients || [],
@@ -86,7 +85,7 @@ export default function AdminMenuPage() {
     fetchMenu();
   };
 
-  // Filter menu items based on type
+  // filter menu items based on type
   const filteredMenuItems = menuItems.filter(
     (item) => activeFilter === "all" || item.type === activeFilter
   );

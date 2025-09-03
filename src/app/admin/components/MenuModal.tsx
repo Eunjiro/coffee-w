@@ -3,9 +3,9 @@
 import { useState, useRef } from "react";
 
 interface Ingredient {
-    id?: number;          // optional, can map to ingredientId
-    ingredientId?: number; // backend expects this
-    name: string;         // only for frontend display
+    id?: number;         
+    ingredientId?: number; 
+    name: string;         
     qtyNeeded: number;
 }
 
@@ -81,7 +81,6 @@ export default function MenuModal({
         if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
-    /** SIZE & INGREDIENT UPDATES **/
     const updateSize = (sizeIdx: number, key: keyof Size, value: string | number) => {
         const newSizes = [...form.sizes];
         if (key === "price") newSizes[sizeIdx].price = Number(value) || 0;
@@ -107,7 +106,6 @@ export default function MenuModal({
         setForm({ ...form, sizes: newSizes });
     };
 
-    /** SIZE SELECTION **/
     const toggleSize = (sizeLabel: string) => {
         const existingIndex = form.sizes.findIndex((s) => s.label === sizeLabel);
         let newSizes = [...form.sizes];
@@ -119,11 +117,9 @@ export default function MenuModal({
         setForm({ ...form, sizes: newSizes });
     };
 
-    // Add this inside MenuModal, before the return statement
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // transform the form for backend
         const payload = {
             ...form,
             sizes: form.sizes.map((size) => ({
@@ -136,10 +132,9 @@ export default function MenuModal({
             })),
         };
 
-        // Call external onSubmit if provided
+        // call external onSubmit kapag provided
         if (onSubmit) await onSubmit(e);
 
-        // Optionally, you could also POST/PUT here:
         // await fetch("/api/admin/menu", {
         //   method: editing ? "PUT" : "POST",
         //   headers: { "Content-Type": "application/json" },

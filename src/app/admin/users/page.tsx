@@ -35,7 +35,7 @@ export default function UsersPage() {
         role: "BARISTA",
     });
 
-    // Fetch all users
+    // fetch all users
     const fetchUsers = async () => {
         setLoading(true);
         try {
@@ -54,7 +54,7 @@ export default function UsersPage() {
         fetchUsers();
     }, []);
 
-    // Create or Update User
+    // create or Update User
     const handleSave = async () => {
         try {
             const method = editingUser ? "PUT" : "POST";
@@ -79,7 +79,7 @@ export default function UsersPage() {
         }
     };
 
-    // Delete User
+    // delete User
     const handleDelete = async (id: number) => {
         if (!confirm("Are you sure you want to delete this user?")) return;
         try {
@@ -93,7 +93,7 @@ export default function UsersPage() {
         }
     };
 
-    // Edit User
+    // edit User
     const handleEdit = (user: User) => {
         setEditingUser(user);
         setForm({

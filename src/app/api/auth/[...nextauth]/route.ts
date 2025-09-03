@@ -23,11 +23,9 @@ export const authOptions: NextAuthOptions = {
 
     if (!user) return null;
 
-    // Verify password
     const isValid = await bcrypt.compare(credentials.password, user.password);
     if (!isValid) return null;
 
-    // Return session-safe object (id as string!)
     return { 
         id: String(user.id), 
         email: user.email, 

@@ -1,16 +1,16 @@
 import Image from "next/image";
-import { Size } from "../types"; // import your centralized Size type
+import { Size } from "../types";
 
 interface MenuCardProps {
   name: string;
-  image?: string; // optional
+  image?: string;
   type: string;
   status: string;
-  sizes: Size[]; // use centralized type
+  sizes: Size[];
 }
 
 export default function MenuCard({ name, image, type, status, sizes }: MenuCardProps) {
-  const fallbackImage = "/placeholder.png"; // put a placeholder image in public/
+  const fallbackImage = "/placeholder.png";
 
   return (
     <div className="w-[213px] h-[377px] bg-white rounded-xl shadow-md p-2 flex flex-col">

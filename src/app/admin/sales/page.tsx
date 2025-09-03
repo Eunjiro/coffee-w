@@ -93,7 +93,9 @@ export default function SalesPage() {
   };
 
   // --- Sales Analytics ---
-  const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+  // Convert Decimal -> number
+  const totalSales = orders.reduce((sum, order) => sum + Number(order.total), 0);
+
   const totalOrders = orders.length;
 
   const salesByStatus = ["PAID", "PENDING", "CANCELLED", "VOID"].map((status) => ({
@@ -120,14 +122,16 @@ export default function SalesPage() {
   const salesOverTime = orders.reduce((acc: Record<string, number>, order) => {
     const date = new Date(order.createdAt);
     const key = groupKey(date);
-    acc[key] = (acc[key] || 0) + order.total;
+    acc[key] = (acc[key] || 0) + Number(order.total);
     return acc;
   }, {});
 
+
   const salesOverTimeData = Object.entries(salesOverTime).map(([date, total]) => ({
     date,
-    total,
+    total: Number(total),
   }));
+
 
   // --- Top Selling Menu Items ---
   const menuSales: Record<string, number> = {};
@@ -305,7 +309,8 @@ export default function SalesPage() {
                     <td className="p-2 border-b">{order.users.name}</td>
                     <td className="p-2 border-b">{order.status}</td>
                     <td className="p-2 border-b">{order.paymentMethod || "-"}</td>
-                    <td className="p-2 border-b">₱{order.total.toFixed(2)}</td>
+                    <td className="p-2 border-b">₱{Number(order.total).toFixed(2)}</td>
+
                     <td className="p-2 border-b">
                       {new Date(order.createdAt).toLocaleString()}
                     </td>

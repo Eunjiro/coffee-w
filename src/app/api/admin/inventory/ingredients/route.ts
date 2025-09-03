@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 // GET all ingredients
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const search = searchParams.get("q"); // for search
+  const search = searchParams.get("q"); // for searc
 
   const ingredients = await prisma.ingredients.findMany({
     where: search
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
   return NextResponse.json(ingredients);
 }
 
-// POST create new ingredient
+// POST create new ing
 export async function POST(req: Request) {
   const data = await req.json();
   const unitCost =
