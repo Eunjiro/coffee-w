@@ -87,15 +87,34 @@ export async function GET(req: Request) {
   // Recent orders
   const recentOrdersRaw = await prisma.orders.findMany({
     where: { status: "PAID" },
-    include: { users: true },
+    include: { 
+      users: true,
+      orderitems: {
+        include: {
+          menu: true,
+          orderitemaddons: {
+            include: {
+              menu: true
+            }
+          }
+        }
+      }
+    },
     orderBy: { createdAt: "desc" },
     take: 5,
   });
 
-  const recentOrders: RecentOrder[] = recentOrdersRaw.map((order) => ({
+  const recentOrders: any[] = recentOrdersRaw.map((order) => ({
     id: order.id,
     total: order.total.toNumber(), // convert Decimal -> number
     createdAt: order.createdAt,
+    status: order.status.toLowerCase(),
+    paymentMethod: order.paymentMethod?.toLowerCase() || "cash",
+    items: order.orderitems.map((item: any) => ({
+      name: item.menu.name,
+      quantity: item.quantity,
+      addons: item.orderitemaddons.map((addon: any) => addon.menu.name)
+    })),
     users: order.users ? { name: order.users.name } : { name: "Guest" },
   }));
 

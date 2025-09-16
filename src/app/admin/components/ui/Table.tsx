@@ -36,18 +36,20 @@ interface TableContainerProps {
   className?: string;
 }
 
+/**
+ * ✅ Only returns a <table>, no <div>
+ */
 const Table: React.FC<TableProps> = ({ children, className = '' }) => {
   return (
-    <div className={`bg-white rounded-xl shadow-sm overflow-hidden ${className}`}>
-      <div className="overflow-x-auto">
-        <table className="w-full focus:outline-none">
-          {children}
-        </table>
-      </div>
-    </div>
+    <table className={`w-full focus:outline-none ${className}`}>
+      {children}
+    </table>
   );
 };
 
+/**
+ * ✅ Responsible for styling, scroll, wrapper
+ */
 const TableContainer: React.FC<TableContainerProps> = ({ 
   children, 
   scrollable = false, 
@@ -55,13 +57,11 @@ const TableContainer: React.FC<TableContainerProps> = ({
 }) => {
   const scrollableClasses = scrollable ? 'flex-1 flex flex-col' : '';
   const scrollbarClasses = scrollable ? 'custom-scrollbar' : '';
-  
+
   return (
     <div className={`bg-white rounded-xl shadow-sm overflow-hidden ${scrollableClasses} ${className}`}>
       <div className={`overflow-x-auto ${scrollable ? 'flex-1 overflow-y-auto' : ''} ${scrollbarClasses}`}>
-        <table className="w-full focus:outline-none">
-          {children}
-        </table>
+        {children} {/* ✅ Expect <Table> here */}
       </div>
     </div>
   );
@@ -81,11 +81,7 @@ const TableHeader: React.FC<TableHeaderProps> = ({
 };
 
 const TableBody: React.FC<TableBodyProps> = ({ children, className = '' }) => {
-  return (
-    <tbody className={className}>
-      {children}
-    </tbody>
-  );
+  return <tbody className={className}>{children}</tbody>;
 };
 
 const TableRow: React.FC<TableRowProps> = ({ 
@@ -98,7 +94,7 @@ const TableRow: React.FC<TableRowProps> = ({
   const hoverClasses = hover ? 'hover:bg-[#F3EEEA]/50' : '';
   const alternatingClasses = alternating && index % 2 === 1 ? 'bg-gray-50' : 'bg-white';
   const borderClasses = 'border-b border-[#B0A695]/20';
-  
+
   return (
     <tr className={`${borderClasses} ${hoverClasses} ${alternatingClasses} ${className}`}>
       {children}
@@ -111,9 +107,9 @@ const TableCell: React.FC<TableCellProps> = ({
   header = false, 
   className = '' 
 }) => {
-  const paddingClasses = header ? 'px-6 py-4' : 'px-6 py-4';
+  const paddingClasses = 'px-6 py-4';
   const textClasses = header ? 'text-left font-semibold text-[#776B5D]' : 'text-[#776B5D]';
-  
+
   if (header) {
     return (
       <th className={`${paddingClasses} ${textClasses} focus:outline-none ${className}`}>
@@ -121,7 +117,7 @@ const TableCell: React.FC<TableCellProps> = ({
       </th>
     );
   }
-  
+
   return (
     <td className={`${paddingClasses} ${textClasses} focus:outline-none ${className}`}>
       {children}

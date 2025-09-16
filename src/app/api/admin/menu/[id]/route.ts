@@ -30,9 +30,10 @@ interface IngredientItem {
 }
 
 // GET single menu
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const menuId = Number(params.id);
+    const { id } = await params;
+    const menuId = Number(id);
     if (isNaN(menuId)) throw new Error("Invalid menu ID");
 
     const menu = await prisma.menu.findUnique({
@@ -96,9 +97,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 }
 
 // PUT: update menu
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const menuId = Number(params.id);
+    const { id } = await params;
+    const menuId = Number(id);
     if (isNaN(menuId)) throw new Error("Invalid menu ID");
 
     const data: MenuInput = await req.json();
@@ -164,9 +166,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 // DELETE menu
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const menuId = Number(params.id);
+    const { id } = await params;
+    const menuId = Number(id);
     if (isNaN(menuId)) throw new Error("Invalid menu ID");
 
     const sizeIds = (await prisma.sizes.findMany({ where: { menuId }, select: { id: true } })).map(s => s.id);

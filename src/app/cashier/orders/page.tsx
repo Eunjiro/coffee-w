@@ -150,6 +150,11 @@ export default function OrdersPage() {
         }
     };
 
+    const filteredOrders = useMemo(() => {
+        return orders.filter((order) => order.status === statusFilter);
+    }, [orders, statusFilter]);
+
+
     useEffect(() => {
         fetchOrders();
         const interval = setInterval(fetchOrders, 5000);
@@ -162,10 +167,7 @@ export default function OrdersPage() {
         return null;
     }
 
-    const filteredOrders = useMemo(() => {
-        return orders.filter((order) => order.status === statusFilter);
-    }, [orders, statusFilter]);
-
+    
     return (
         <CashierLayout>
             <div className="p-6 space-y-4">

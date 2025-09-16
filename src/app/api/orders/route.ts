@@ -9,6 +9,9 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id ? Number(session.user.id) : 2;
 
+    console.log("Session:", session);
+    console.log("User ID:", userId);
+
     if (isNaN(userId)) {
       return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
     }
@@ -21,6 +24,16 @@ export async function POST(req: Request) {
 
     if (!paymentMethod) {
       return NextResponse.json({ error: "Payment method is required" }, { status: 400 });
+    }
+
+    // Validate cart items
+    for (const item of cartItems) {
+      if (!item.id || !item.quantity || !item.price) {
+        return NextResponse.json({ 
+          error: "Invalid cart item", 
+          details: `Missing required fields for item: ${JSON.stringify(item)}` 
+        }, { status: 400 });
+      }
     }
 
     const baseTotal = cartItems.reduce(
@@ -38,8 +51,8 @@ export async function POST(req: Request) {
     const order = await prisma.orders.create({
       data: {
         userId,
-        baseTotal,
-        total,
+        baseTotal: baseTotal,
+        total: total,
         status: "PENDING",
         paymentMethod,
         orderitems: {
@@ -49,10 +62,12 @@ export async function POST(req: Request) {
             sizeId: item.selectedSize?.id || null,
             ...(item.selectedAddons?.length > 0 && {
               orderitemaddons: {
-                create: item.selectedAddons.map((addon: any) => ({
-                  addonId: addon.id,
-                  price: addon.price,
-                })),
+                create: item.selectedAddons
+                  .filter((addon: any) => addon.id && addon.id > 0 && addon.price > 0)
+                  .map((addon: any) => ({
+                    addonId: addon.id,
+                    price: addon.price,
+                  })),
               },
             }),
           })),
@@ -65,26 +80,19 @@ export async function POST(req: Request) {
       },
     });
 
-    for (const item of order.orderitems) {
-      const recipes = await prisma.recipes.findMany({
-        where: { menuId: item.menuId, ...(item.sizeId && { sizeId: item.sizeId }) },
-        include: { recipeingredients: true },
-      });
-
-      for (const ri of recipes) {
-        for (const recipeIngredient of ri.recipeingredients) {
-          await prisma.ingredients.update({
-            where: { id: recipeIngredient.ingredientId },
-            data: { stock: { decrement: Number(recipeIngredient.qtyNeeded) * item.quantity } },
-          });
-        }
-      }
-    }
+    // Note: Inventory reduction is now handled only when order is marked as PAID
+    // This prevents double reduction when order is created and then paid
 
     return NextResponse.json({ success: true, orderRef: order.id });
   } catch (err) {
     console.error("Order creation error:", err);
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+    console.error("Error details:", JSON.stringify(err, null, 2));
+    console.error("Request data:", { cartItems, paymentMethod, appliedReward });
+    return NextResponse.json({ 
+      error: "Failed to create order", 
+      details: err.message,
+      type: err.constructor.name 
+    }, { status: 500 });
   }
 }
 

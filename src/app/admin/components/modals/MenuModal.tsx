@@ -1,10 +1,26 @@
 // MenuModal.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Minus, Plus } from "lucide-react";
-import { addonData } from "../../mocks/addonData";
-import type { MenuItem } from "../../mocks/menuData";
+// Remove mock data imports - will use real API data
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
+
+interface MenuItem {
+    id: number;
+    name: string;
+    image?: string;
+    type: string;
+    status: string;
+    basePrice?: number;
+    small_price?: number;
+    medium_price?: number;
+    large_price?: number;
+    sizes?: Array<{
+        id: number;
+        label: string;
+        price: number;
+    }>;
+}
 
 export interface MenuModalProps {
     item: MenuItem;
@@ -17,12 +33,28 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
     const [selectedSize, setSelectedSize] = useState<string>("medium");
     const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
     const [quantity, setQuantity] = useState<number>(1);
+    const [addonData, setAddonData] = useState<any[]>([]);
+
+    // Load addon data on component mount
+    useEffect(() => {
+        const loadAddonData = async () => {
+            try {
+                const response = await fetch("/api/admin/menu");
+                const data = await response.json();
+                const addons = data.filter((item: any) => item.type === "ADDON");
+                setAddonData(addons);
+            } catch (error) {
+                console.error('Error loading addon data:', error);
+            }
+        };
+        loadAddonData();
+    }, []);
 
     const total = useMemo(() => {
         const basePrice = selectedSize === "small" ? item.small_price : selectedSize === "large" ? item.large_price : item.medium_price;
         const addonsTotal = selectedAddons.reduce((sum, addonName) => {
-            const addon = addonData.find(a => a.name === addonName && a.available);
-            return sum + (addon ? addon.price : 0);
+            const addon = addonData.find(a => a.name === addonName);
+            return sum + (addon ? addon.basePrice || 0 : 0);
         }, 0);
         return ((basePrice ?? 0) + addonsTotal) * quantity;
     }, [selectedSize, selectedAddons, quantity, item]);
@@ -125,13 +157,11 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
                 </div>
 
                 {/* Add-Ons Options */}
-                {addonData.filter(addon => addon.available).length > 0 && (
+                {addonData.length > 0 && (
                     <div>
                         <h3 className="mb-3 font-semibold text-[#776B5D]">Add-Ons</h3>
                         <div className="space-y-3">
-                            {addonData
-                                .filter(addon => addon.available)
-                                .map(addon => (
+                            {addonData.map(addon => (
                                 <Button
                                     key={addon.id}
                                     variant={selectedAddons.includes(addon.name) ? "primary" : "secondary"}
@@ -144,7 +174,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
                                             <span className="opacity-75 mt-1 text-xs">{addon.description}</span>
                                         )}
                                     </div>
-                                    <span className="font-semibold">+ {formatPrice(addon.price)}</span>
+                                    <span className="font-semibold">+ {formatPrice(addon.basePrice)}</span>
                                 </Button>
                             ))}
                         </div>

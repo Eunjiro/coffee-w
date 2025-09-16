@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import CashierLayout from "../components/CashierLayout";
 import MenuModal from "../components/OrderModal"; // reuse your modal for adding to cart
-import CheckoutModal from "../components/CheckoutModal";
+// Removed CheckoutModal import - now using payment page
 import { MenuItem, CartItem } from "@/types/types";
 import { Star, ShoppingCart, Trash2, CreditCard, Clipboard } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
@@ -31,7 +31,6 @@ export default function PosPage() {
   const [loading, setLoading] = useState(true);
 
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const totalCost = useMemo(
     () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -89,6 +88,12 @@ export default function PosPage() {
   const clearCart = () => {
     setCart([]);
     router.push("/cashier/orders");
+  };
+
+  const proceedToPayment = () => {
+    // Store cart data in sessionStorage to pass to payment page
+    sessionStorage.setItem('cartItems', JSON.stringify(cart));
+    router.push("/cashier/payment");
   };
 
   if (status === "loading") return <p>Loading session...</p>;
@@ -253,11 +258,11 @@ export default function PosPage() {
                   <span className="font-bold">₱{totalCost.toFixed(2)}</span>
                 </div>
                 <button
-                  onClick={() => setCheckoutOpen(true)}
+                  onClick={proceedToPayment}
                   className="bg-[#776B5D] hover:bg-[#776B5D]/90 py-3 rounded-lg w-full font-bold text-[#F3EEEA] text-lg transition text-center flex justify-center items-center gap-2"
                 >
                   <CreditCard className="" />
-                  Proceed to Checkout
+                  Proceed to Payment
                 </button>
               </div>
             )}
@@ -272,14 +277,7 @@ export default function PosPage() {
             />
           )}
 
-          {/* Checkout Modal */}
-          {checkoutOpen && (
-            <CheckoutModal
-              cartItems={cart}
-              onClose={() => setCheckoutOpen(false)}
-              onOrderPlaced={clearCart}
-            />
-          )}
+          {/* Checkout Modal removed - now using payment page */}
         </div>
       )}
     </CashierLayout>

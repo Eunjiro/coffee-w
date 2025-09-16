@@ -266,6 +266,9 @@ export default function AdminDashboardClient() {
                   {order.items?.slice(0, 2).map((item: any, i: number) => (
                     <div key={i} className="text-[#776B5D]/70 text-xs">
                       {item.quantity}x {item.name}
+                      {item.addons && item.addons.length > 0 && (
+                        <span className="text-[#776B5D]/50"> +{item.addons.length} add-ons</span>
+                      )}
                     </div>
                   ))}
                   {order.items?.length > 2 && (

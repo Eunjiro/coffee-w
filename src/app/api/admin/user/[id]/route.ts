@@ -5,11 +5,12 @@ import bcrypt from "bcryptjs";
 // GET single user
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const user = await prisma.users.findUnique({
-      where: { id: parseInt(params.id) },
+      where: { id: parseInt(id) },
       select: {
         id: true,
         email: true,
@@ -33,9 +34,10 @@ export async function GET(
 // UPDATE user
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await req.json();
     const { email, password, name, role } = body;
 
@@ -45,7 +47,7 @@ export async function PUT(
     }
 
     const updatedUser = await prisma.users.update({
-      where: { id: parseInt(params.id) },
+      where: { id: parseInt(id) },
       data: updatedData,
     });
 
@@ -58,11 +60,12 @@ export async function PUT(
 // DELETE user
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await prisma.users.delete({
-      where: { id: parseInt(params.id) },
+      where: { id: parseInt(id) },
     });
 
     return NextResponse.json({ message: "User deleted successfully" });
