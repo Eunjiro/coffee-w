@@ -169,7 +169,8 @@ export default function UsersPage() {
                                         <SelectContent>
                                             <SelectItem value="ADMIN">Admin</SelectItem>
                                             <SelectItem value="BARISTA">Barista</SelectItem>
-                                        </SelectContent>
+                                            <SelectItem value="CASHIER">Cashier</SelectItem>
+                                        </SelectContent>    
                                     </Select>
                                     <Button onClick={handleSave} className="w-full">
                                         {editingUser ? "Update" : "Create"}

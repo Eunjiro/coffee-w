@@ -38,12 +38,9 @@ export default function CashierLayout({ children }: CashierLayoutProps) {
       <div className="flex-1 flex flex-col relative">
         <Header
           setOpen={setOpen}
-          cartOpen={cartOpen}
-          setCartOpen={setCartOpen}
-          cartCount={cartItems.reduce((sum, item) => sum + item.quantity, 0)}
         />
 
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto">
           {typeof children === "function" ? children({ addToCart, cartItems }) : children}
         </main>
       </div>

@@ -146,6 +146,8 @@ export default function InventoryPage() {
     fetchData();
   }, []);
 
+  
+
   const filteredIngredients = ingredients
     .filter((ing) => ing.name.toLowerCase().includes(ingredientSearch.toLowerCase()))
     .filter((ing) => {

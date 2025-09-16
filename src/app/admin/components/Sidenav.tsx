@@ -1,29 +1,45 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  ClipboardList,
-  Boxes,
+  ShoppingCart,
+  Utensils,
+  Package,
   BarChart,
   Users,
   Settings,
   LogOut,
-  UserIcon,
+  User as UserIcon,
+  X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { signOut, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 
-export default function Sidenav({
-  open,
-  setOpen,
-}: {
+interface SidebarProps {
   open: boolean;
   setOpen: (o: boolean) => void;
-}) {
+}
+
+export default function Sidebar({ open, setOpen }: SidebarProps) {
   const { data: session } = useSession();
+  const pathname = usePathname();
   const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut({ redirect: false });
+    router.push("/");
+  };
+
+  const menuItems = [
+    { label: "Dashboard", icon: LayoutDashboard, path: "/admin", permission: null },
+    { label: "POS", icon: ShoppingCart, path: "/admin/pos", permission: null },
+    { label: "Menu", icon: Utensils, path: "/admin/menu", permission: null },
+    { label: "Inventory", icon: Package, path: "/admin/inventory", permission: null },
+    { label: "Sales", icon: BarChart, path: "/admin/sales", permission: null },
+    { label: "User Management", icon: Users, path: "/admin/users", permission: null },
+  ];
 
   return (
     <>
@@ -50,55 +66,39 @@ export default function Sidenav({
               onClick={() => setOpen(false)}
               className="p-1 rounded-md bg-[#B0A695]"
             >
-              ✕
+              <X />
             </button>
           </div>
 
           <nav className="flex flex-col p-4 space-y-2">
-            <Link
-              href="/admin"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]"
-            >
-              <LayoutDashboard /> Dashboard
-            </Link>
-            <Link
-              href="/admin/menu"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]"
-            >
-              <ClipboardList /> Menu
-            </Link>
-            <Link
-              href="/admin/inventory"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]"
-            >
-              <Boxes /> Inventory
-            </Link>
-            <Link
-              href="/admin/sales"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]"
-            >
-              <BarChart /> Sales
-            </Link>
-            <Link
-              href="/admin/users"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]"
-            >
-              <Users /> User Management
-            </Link>
+            {menuItems.map((item) => (
+              <Link
+                key={item.path}
+                href={item.path}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                  pathname === item.path
+                    ? "bg-[#F3EEEA] text-[#776B5D]"
+                    : "hover:bg-[#B0A695]"
+                }`}
+              >
+                <item.icon
+                  className={`w-5 h-5 ${
+                    pathname === item.path ? "text-[#776B5D]" : "text-[#F3EEEA]"
+                  }`}
+                />
+                {item.label}
+              </Link>
+            ))}
           </nav>
         </div>
 
-        {/* Sidebar Bottom (sticks to bottom) */}
+        {/* Bottom / User Info */}
         <div className="mt-auto flex flex-col p-3 gap-4 bg-[#EBE3D5] rounded-t-lg">
-          {/* User Info */}
           <div className="flex items-center border-b border-[#B0A695] pb-4 gap-3">
-            {/* Avatar */}
             <div className="relative w-14 h-14 bg-[#F3EEEA] rounded-full flex items-center justify-center">
               <div className="absolute inset-1 border-2 border-[#776B5D] rounded-full" />
               <UserIcon className="w-6 h-6 text-[#776B5D]" />
             </div>
-
-            {/* User Details from session */}
             <div className="flex flex-col justify-center gap-1">
               <p className="text-[#776B5D] font-normal text-base leading-6">
                 {session?.user?.name ?? "Guest"}
@@ -109,19 +109,16 @@ export default function Sidenav({
             </div>
           </div>
 
-          {/* Buttons */}
           <div className="flex flex-col gap-2">
-            <button className="flex items-center gap-2 w-full h-10 px-3 bg-[#776B5D] rounded-lg text-[#F3EEEA]">
+            <Link
+              href="/admin/settings"
+              className="flex items-center gap-2 w-full h-10 px-3 bg-[#776B5D] rounded-lg text-[#F3EEEA]"
+            >
               <Settings className="w-5 h-5" />
               <span className="text-sm leading-4 font-normal">Settings</span>
-            </button>
-
+            </Link>
             <button
-              onClick={() => {
-                signOut({ redirect: false }).then(() => {
-                  router.push("/");
-                });
-              }}
+              onClick={handleLogout}
               className="flex items-center gap-2 w-full h-10 px-3 bg-[#776B5D] rounded-lg text-[#F3EEEA]"
             >
               <LogOut className="w-5 h-5" />

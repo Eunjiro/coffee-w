@@ -15,7 +15,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         <Header setOpen={setOpen} />
-        <main className="flex-1 p-6 overflow-y-auto">{children}</main>
+        <main>{children}</main>
       </div>
     </div>
   );
