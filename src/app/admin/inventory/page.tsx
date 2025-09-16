@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../components/AdminLayout";
 import { useSession } from "next-auth/react";
-import { AlertCircle, ClipboardList, Plus } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+  Package,
+  AlertTriangle,
+  Plus,
+  Edit,
+  Trash2,
+  ArrowUpDown,
+} from "lucide-react";
+
+import AddInventoryModal from "../components/modals/AddInventoryModal";
 import { Button } from "@/components/ui/button";
 
 interface Ingredient {
@@ -19,11 +20,11 @@ interface Ingredient {
   name: string;
   supplierId?: number;
   unitId?: number;
-  stock: number | string;
-  threshold: number | string;
-  packagePrice: number;
-  qtyPerPack: number;
-  unitCost: number;
+  packagePrice?: number | null;
+  qtyPerPack?: number | null;
+  unitCost?: number | null;
+  stock: number;
+  threshold: number;
   suppliers?: { id: number; name: string };
   units?: { id: number; name: string };
 }
@@ -39,51 +40,183 @@ interface Unit {
   name: string;
 }
 
+type InventoryRow = {
+  id: string; // "ing-001"
+  type: "ingredient";
+  name: string;
+  category: "disposable" | "liquid" | "solid" | "powder" | "syrup" | string;
+  supplier: string;
+  pkgPrice: number | null;
+  qtyPerPack: number | null;
+  unit: string;
+  unitCost: number | null;
+  stock: number;
+  minStock: number;
+  _raw: Ingredient;
+};
+
+const currency = (v: number | null | undefined) =>
+  v == null
+    ? "—"
+    : `₱${v.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+
+function inferCategory(unitName?: string | null, itemName?: string) {
+  const u = (unitName || "").toLowerCase();
+  const n = (itemName || "").toLowerCase();
+  if (n.includes("syrup")) return "syrup";
+  if (["g", "kg"].includes(u)) return "powder";
+  if (["ml", "l"].includes(u)) return "liquid";
+  if (n.includes("cup") || n.includes("straw")) return "disposable";
+  return "solid";
+}
+
 export default function InventoryPage() {
   const { data: session, status } = useSession();
 
-  const [activeTab, setActiveTab] = useState<"ingredients" | "suppliers" | "units">("ingredients");
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [ingredientSearch, setIngredientSearch] = useState("");
-  const [supplierSearch, setSupplierSearch] = useState("");
-  const [unitSearch, setUnitSearch] = useState("");
+  // UI state (matches your sample UI)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [selectedProduct, setSelectedProduct] = useState("");
+  const [currentStock, setCurrentStock] = useState("");
+  const [inputStock, setInputStock] = useState("");
 
-  const [editOpen, setEditOpen] = useState(false);
-  const [selectedIng, setSelectedIng] = useState<Ingredient | null>(null);
-  const [editForm, setEditForm] = useState<Partial<Ingredient>>({});
+  // dialogs
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState<Partial<Ingredient>>({
-    name: "",
-    stock: 0,
-    threshold: 0,
-    unitCost: 0,
-  });
+  const [editingItem, setEditingItem] = useState<Ingredient | null>(null);
 
-  const handleEdit = (ing: Ingredient) => {
-    setSelectedIng(ing);
-    setEditForm(ing);
-    setEditOpen(true);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [ingRes, supRes, unitRes] = await Promise.all([
+        fetch("/api/admin/inventory/ingredients"),
+        fetch("/api/admin/inventory/suppliers"),
+        fetch("/api/admin/inventory/units"),
+      ]);
+      const [ingData, supData, unitData] = await Promise.all([
+        ingRes.json(),
+        supRes.json(),
+        unitRes.json(),
+      ]);
+      setIngredients(ingData);
+      setSuppliers(supData);
+      setUnits(unitData);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSave = async () => {
-    if (!selectedIng) return;
+  // Quick add Supplier
+  const handleAddSupplier = async () => {
+    const name = typeof window !== "undefined" ? window.prompt("Supplier name:") : null;
+    if (!name) return;
+    const address = typeof window !== "undefined" ? window.prompt("Address (optional):") : null;
     try {
-      const res = await fetch("/api/admin/inventory/ingredients", {
-        method: "PUT",
+      const res = await fetch("/api/admin/inventory/suppliers", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify({ name, address }),
       });
-      if (!res.ok) throw new Error("Failed to update");
-      setEditOpen(false);
+      if (!res.ok) throw new Error("Failed to add supplier");
       await fetchData();
     } catch (err) {
       console.error(err);
+      alert("Failed to add supplier");
     }
+  };
+
+  // Quick add Unit
+  const handleAddUnit = async () => {
+    const name = typeof window !== "undefined" ? window.prompt("Unit name (e.g., ml, g):") : null;
+    if (!name) return;
+    try {
+      const res = await fetch("/api/admin/inventory/units", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error("Failed to add unit");
+      await fetchData();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to add unit");
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Map to unified table rows (ingredients only; cups not in this page)
+  const allItems: InventoryRow[] = useMemo(
+    () =>
+      ingredients.map((ing) => {
+        const unitName = ing.units?.name ?? "";
+        return {
+          id: `ing-${String(ing.id).padStart(3, "0")}`,
+          type: "ingredient" as const,
+          name: ing.name,
+          category: inferCategory(unitName, ing.name),
+          supplier: ing.suppliers?.name ?? "—",
+          pkgPrice:
+            ing.packagePrice == null ? null : Number(ing.packagePrice) || 0,
+          qtyPerPack:
+            ing.qtyPerPack == null ? null : Number(ing.qtyPerPack) || 0,
+          unit: unitName || "—",
+          unitCost: ing.unitCost == null ? null : Number(ing.unitCost) || 0,
+          stock: Number(ing.stock),
+          minStock: Number(ing.threshold),
+          _raw: ing,
+        };
+      }),
+    [ingredients]
+  );
+
+  const filteredItems = useMemo(() => {
+    return allItems.filter((item) => {
+      const matchesSearch = item.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const matchesCategory =
+        filterCategory === "all" || item.category === filterCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [allItems, searchTerm, filterCategory]);
+
+  const lowStockItems = filteredItems.filter(
+    (item) => item.stock <= item.minStock
+  );
+  const lowStockCount = lowStockItems.length;
+
+  const getStockStatus = (stock: number, minStock: number) => {
+    if (stock <= 0) return { status: "out", color: "text-red-500" };
+    if (stock <= minStock) return { status: "low", color: "text-red-500" };
+    return { status: "good", color: "text-[#776B5D]" };
+  };
+
+  const categories = [
+    { label: "All Items", value: "all", icon: Package },
+    { label: "Disposable", value: "disposable", icon: Package },
+    { label: "Dairy", value: "liquid", icon: Package },
+    { label: "Solid", value: "solid", icon: Package },
+    { label: "Powder", value: "powder", icon: Package },
+    { label: "Syrup", value: "syrup", icon: Package },
+  ];
+
+  // CRUD handlers (reuse your existing endpoints)
+  const handleEdit = (ing: Ingredient) => {
+    setEditingItem(ing);
+    setShowAddModal(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -99,78 +232,56 @@ export default function InventoryPage() {
     }
   };
 
-  const handleAddIngredient = async () => {
+  const handleAddIngredient = () => {
+    console.log('Add Ingredient button clicked');
+    setEditingItem(null);
+    setShowAddModal(true);
+    console.log('Modal should be open now, showAddModal:', true);
+  };
+
+  const handleModalClose = () => {
+    setShowAddModal(false);
+    setEditingItem(null);
+  };
+
+  const handleModalSave = () => {
+    fetchData(); // Refresh the data
+    handleModalClose();
+  };
+
+  const handleRestock = async () => {
+    if (!selectedProduct || !inputStock) return;
+    const item = allItems.find((it) => it.id === selectedProduct);
+    if (!item) return;
+
+    const delta = Number(inputStock);
+    const newStock = (item.stock || 0) + delta;
+
     try {
       const res = await fetch("/api/admin/inventory/ingredients", {
-        method: "POST",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(addForm),
+        // your PUT expects a body like your editForm; include id + stock only (server should merge)
+        body: JSON.stringify({ id: item._raw.id, stock: newStock }),
       });
-      if (!res.ok) throw new Error("Failed to add ingredient");
-      setShowAddModal(false);
-      setAddForm({ name: "", stock: 0, threshold: 0, unitCost: 0 });
-      await fetchData();
-    } catch (err) {
-      console.error(err);
-    }
-  };
+      if (!res.ok) throw new Error("Failed to restock");
 
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [ingRes, supRes, unitRes] = await Promise.all([
-        fetch("/api/admin/inventory/ingredients"),
-        fetch("/api/admin/inventory/suppliers"),
-        fetch("/api/admin/inventory/units"),
-      ]);
-
-      const [ingData, supData, unitData] = await Promise.all([
-        ingRes.json(),
-        supRes.json(),
-        unitRes.json(),
-      ]);
-
-      setIngredients(ingData);
-      setSuppliers(supData);
-      setUnits(unitData);
-    } catch (error) {
-      console.error("Error fetching inventory data:", error);
+      // optimistic update
+      setIngredients((prev) =>
+        prev.map((ing) =>
+          ing.id === item._raw.id ? { ...ing, stock: newStock } : ing
+        )
+      );
+    } catch (e) {
+      console.error(e);
     } finally {
-      setLoading(false);
+      setSelectedProduct("");
+      setCurrentStock("");
+      setInputStock("");
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  
-
-  const filteredIngredients = ingredients
-    .filter((ing) => ing.name.toLowerCase().includes(ingredientSearch.toLowerCase()))
-    .filter((ing) => {
-      if (categoryFilter === "low") {
-        return Number(ing.stock) <= Number(ing.threshold);
-      }
-      if (categoryFilter === "dairy") {
-        return ing.name.toLowerCase().includes("milk") || ing.name.toLowerCase().includes("cream");
-      }
-      if (categoryFilter === "disposable") {
-        return ing.name.toLowerCase().includes("cup") || ing.name.toLowerCase().includes("straw");
-      }
-      return true;
-    });
-
-  const filteredSuppliers = suppliers.filter((sup) =>
-    sup.name.toLowerCase().includes(supplierSearch.toLowerCase())
-  );
-
-  const filteredUnits = units.filter((unit) =>
-    unit.name.toLowerCase().includes(unitSearch.toLowerCase())
-  );
-
+  // session/role gate
   if (status === "loading") return <p>Loading session...</p>;
   if (!session) {
     if (typeof window !== "undefined") window.location.href = "/";
@@ -181,336 +292,270 @@ export default function InventoryPage() {
     return null;
   }
 
-  const lowStockCount = ingredients.filter(
-    (ing) => Number(ing.stock) <= Number(ing.threshold)
-  ).length;
+  // Status tags (like your sample)
+  const statusTags = (
+    <>
+      <span className="flex items-center gap-1 bg-orange-100 px-3 py-2 border border-orange-300 rounded-lg font-medium text-orange-600">
+        <AlertTriangle className="w-4 h-4" />
+        Low Stock
+      </span>
+      <span className="bg-white px-3 py-2 border border-green-500 rounded-lg font-medium text-green-600">
+        In Stock
+      </span>
+      <span className="bg-white px-3 py-2 border border-red-500 rounded-lg font-medium text-red-500">
+        Out of Stock
+      </span>
+    </>
+  );
 
   return (
     <AdminLayout>
-      <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4">Inventory Management</h1>
-
-        {/* Add Ingredient Modal */}
-        <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Ingredient</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <Input
-                placeholder="Name"
-                value={addForm.name}
-                onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-              />
-              <Input
-                type="number"
-                placeholder="Stock"
-                value={addForm.stock ?? ""}
-                onChange={(e) => setAddForm({ ...addForm, stock: Number(e.target.value) })}
-              />
-              <Input
-                type="number"
-                placeholder="Threshold"
-                value={addForm.threshold ?? ""}
-                onChange={(e) => setAddForm({ ...addForm, threshold: Number(e.target.value) })}
-              />
-              <Input
-                type="number"
-                placeholder="Unit Cost"
-                value={addForm.unitCost ?? ""}
-                onChange={(e) => setAddForm({ ...addForm, unitCost: Number(e.target.value) })}
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
-              <Button onClick={handleAddIngredient}>Add</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-
-        {/* Stat Filters + Add Button */}
-        {activeTab === "ingredients" && (
-          <div className="flex flex-wrap items-center gap-4 mb-6">
-            {/* Low on Stock */}
-            <button
-              onClick={() => setCategoryFilter("low")}
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-red-500 rounded-xl hover:shadow"
+      <div className="bg-[#F3EEEA] p-8 h-full min-h-screen overflow-hidden flex flex-col">
+        {/* Page header */}
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-[#2f2a24]">Inventory Management</h1>
+            <p className="text-[#776B5D]">
+              Track and manage your coffee shop&apos;s inventory, ingredients, and supplies
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleAddIngredient}
+              className="bg-[#776B5D] hover:bg-[#776B5D]/90 text-[#F3EEEA]"
             >
-              <AlertCircle className="text-red-500 w-6 h-6" />
-              <span className="text-red-500 font-medium">
-                Low on stock | {lowStockCount}
-              </span>
-            </button>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Ingredient
+            </Button>
+            <Button variant="outline" className="border-[#B0A695] text-[#776B5D]" onClick={handleAddSupplier}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Supplier
+            </Button>
+            <Button variant="outline" className="border-[#B0A695] text-[#776B5D]" onClick={handleAddUnit}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Unit
+            </Button>
+          </div>
+        </div>
 
-            {/* aall Items */}
-            <button
-              onClick={() => setCategoryFilter("all")}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl ${categoryFilter === "all"
-                ? "bg-[#B0A695] text-white"
-                : "bg-white border border-gray-300 text-gray-700"
-                }`}
+        {/* Restock Controls */}
+        <div className="bg-white rounded-xl p-6 mb-6 shadow-sm">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="font-medium text-[#776B5D]">Restock:</span>
+            <select
+              value={selectedProduct}
+              onChange={(e) => {
+                const id = e.target.value;
+                setSelectedProduct(id);
+                const item = allItems.find((it) => it.id === id);
+                setCurrentStock(item ? `${item.stock} ${item.unit}` : "");
+              }}
+              className="bg-white px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D] min-w-[200px]"
+              disabled={loading || allItems.length === 0}
             >
-              <ClipboardList className="w-6 h-6" />
-              <span>All Items</span>
-            </button>
-
-            {/* disposable */}
+              <option value="">Select Product</option>
+              {allItems.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+            <span className="font-medium text-[#776B5D]">Current Stock:</span>
+            <input
+              type="text"
+              value={currentStock}
+              placeholder="Ex: 300 ml"
+              className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D] min-w-[140px]"
+              readOnly
+            />
+            <input
+              type="number"
+              value={inputStock}
+              onChange={(e) => setInputStock(e.target.value)}
+              placeholder="input stock"
+              className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D] min-w-[140px]"
+            />
             <button
-              onClick={() => setCategoryFilter("disposable")}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl ${categoryFilter === "disposable"
-                ? "bg-[#776B5D] text-white"
-                : "bg-white border border-gray-300 text-gray-700"
-                }`}
+              onClick={handleRestock}
+              className="bg-[#776B5D] hover:bg-[#776B5D]/90 px-4 py-2 rounded-lg font-medium text-[#F3EEEA] transition-colors duration-150"
             >
-              <ClipboardList className="w-6 h-6" />
-              <span>Disposable</span>
-            </button>
-
-            {/* dairy */}
-            <button
-              onClick={() => setCategoryFilter("dairy")}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl ${categoryFilter === "dairy"
-                ? "bg-[#776B5D] text-white"
-                : "bg-white border border-gray-300 text-gray-700"
-                }`}
-            >
-              <ClipboardList className="w-6 h-6" />
-              <span>Dairy</span>
-            </button>
-
-            {/* add ing */}
-            <button
-              onClick={() => setShowAddModal(true)} // <- You'll use this to toggle a modal
-              className="ml-auto flex items-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add Ingredient</span>
+              Confirm
             </button>
           </div>
-        )}
+        </div>
 
-
-        {/* tabs */}
-        <div className="flex border-b border-gray-300 mb-4">
-          {["ingredients", "suppliers", "units"].map((tab) => (
-            <button
-              key={tab}
-              className={`px-4 py-2 -mb-px font-semibold border-b-2 ${activeTab === tab
-                ? "border-[#776B5D] text-[#776B5D]"
-                : "border-transparent text-gray-600 hover:text-[#776B5D]"
+        {/* Category Tabs (chips) */}
+        <div className="flex flex-wrap gap-2 md:gap-4 mb-6">
+          {lowStockCount > 0 && (
+            <div className="flex justify-center items-center bg-red-500 p-2 rounded-xl">
+              <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-md font-normal transition-colors duration-150 w-full h-full bg-transparent text-white">
+                <AlertTriangle className="w-5 h-5" />
+                <span>Low on stock | {lowStockCount}</span>
+              </button>
+            </div>
+          )}
+          {categories.map((category) => (
+            <div key={category.value} className="flex justify-center items-center bg-white p-2 rounded-xl">
+              <button
+                onClick={() => setFilterCategory(category.value)}
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md font-normal transition-colors duration-150 w-full h-full ${
+                  filterCategory === category.value
+                    ? "bg-[#776B5D] text-[#F3EEEA]"
+                    : "bg-transparent text-[#776B5D]"
                 }`}
-              onClick={() => setActiveTab(tab as any)}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
+              >
+                {/* @ts-ignore */}
+                {category.icon && (
+                  <category.icon
+                    className="w-5 h-5"
+                    color={filterCategory === category.value ? "#F3EEEA" : "#776B5D"}
+                  />
+                )}
+                <span>{category.label}</span>
+              </button>
+            </div>
           ))}
         </div>
 
-        {loading ? (
-          <p>Loading...</p>
-        ) : (
-          <>
-            {activeTab === "ingredients" && (
-              <div>
-                <div className="flex flex-col sm:flex-row justify-between mb-2 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Search ingredients..."
-                    className="border border-gray-300 rounded-md px-3 py-1 w-full sm:max-w-sm"
-                    value={ingredientSearch}
-                    onChange={(e) => setIngredientSearch(e.target.value)}
-                  />
-                </div>
+        {/* Search + Status tags */}
+        <div className="bg-white rounded-xl p-4 mb-4 border border-[#E7E1DA]">
+          <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+            <input
+              type="text"
+              placeholder="Search items..."
+              className="border border-[#B0A695] rounded-md px-3 py-2 w-full md:max-w-sm text-[#776B5D] placeholder:text-[#B0A695]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <div className="flex gap-2">{statusTags}</div>
+          </div>
+        </div>
 
-                <div className="overflow-x-auto max-h-[500px] border border-gray-300 rounded-md">
-                  <table className="w-full border-collapse">
-                    <thead className="bg-gray-100 sticky top-0 z-10">
-                      <tr>
-                        <th className="p-2 border-b text-left">Name</th>
-                        <th className="p-2 border-b text-left">Supplier</th>
-                        <th className="p-2 border-b text-left">Unit</th>
-                        <th className="p-2 border-b text-left">Stock</th>
-                        <th className="p-2 border-b text-left">Threshold</th>
-                        <th className="p-2 border-b text-left">Actions</th>
+        {/* Inventory Table */}
+        <div className="flex-1 flex flex-col bg-white border border-[#E7E1DA] rounded-xl overflow-hidden">
+          <div className="overflow-auto">
+            <table className="min-w-[960px] w-full text-sm">
+              <thead className="bg-[#F7F4F1] sticky top-0 z-10">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-[#776B5D]">
+                    <div className="flex items-center gap-1">
+                      ID <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-[#776B5D]">
+                    <div className="flex items-center gap-1">
+                      Name <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-[#776B5D]">
+                    <div className="flex items-center gap-1">
+                      Category <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-[#776B5D]">
+                    <div className="flex items-center gap-1">
+                      Supplier <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-[#776B5D]">
+                    <div className="flex items-center gap-1">
+                      Pkg Price <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-[#776B5D]">
+                    <div className="flex items-center gap-1">
+                      Qty per Pack <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-[#776B5D]">
+                    <div className="flex items-center gap-1">
+                      Unit <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-[#776B5D]">
+                    <div className="flex items-center gap-1">
+                      Unit Cost <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-[#776B5D]">
+                    <div className="flex items-center gap-1">
+                      On stock <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-[#776B5D]">
+                    <div className="flex items-center gap-1">
+                      Reorder level <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-[#776B5D]">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td className="px-4 py-4 text-[#776B5D]" colSpan={11}>
+                      <div className="animate-pulse">Loading inventory…</div>
+                    </td>
+                  </tr>
+                ) : filteredItems.length === 0 ? (
+                  <tr>
+                    <td className="px-4 py-6 text-center text-[#776B5D]" colSpan={11}>
+                      No items found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredItems.map((item, index) => {
+                    const stockStatus = getStockStatus(item.stock, item.minStock);
+                    const shortId = `INV${item.id.slice(-3).toUpperCase()}`;
+                    const rowBg = index % 2 === 1 ? "bg-[#FAF7F3]" : "bg-white";
+
+                    return (
+                      <tr key={item.id} className={`${rowBg} hover:bg-[#F3EEEA]`}>
+                        <td className="px-4 py-3 font-medium">{shortId}</td>
+                        <td className="px-4 py-3 font-medium">{item.name}</td>
+                        <td className="px-4 py-3 capitalize">{item.category}</td>
+                        <td className="px-4 py-3">{item.supplier}</td>
+                        <td className="px-4 py-3">{currency(item.pkgPrice)}</td>
+                        <td className="px-4 py-3">{item.qtyPerPack ?? "—"}</td>
+                        <td className="px-4 py-3">{item.unit}</td>
+                        <td className="px-4 py-3">{currency(item.unitCost)}</td>
+                        <td className={`px-4 py-3 font-medium ${stockStatus.color}`}>{item.stock}</td>
+                        <td className={`px-4 py-3 font-medium ${stockStatus.color}`}>{item.minStock}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleEdit(item._raw)}
+                              className="p-1 hover:bg-[#B0A695]/20 rounded transition-colors"
+                              title="Edit"
+                            >
+                              <Edit className="w-4 h-4 text-[#776B5D]" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(item._raw.id)}
+                              className="p-1 hover:bg-red-100 rounded transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredIngredients.map((ing) => {
-                        const stock = Number(ing.stock);
-                        const threshold = Number(ing.threshold);
-                        const isLowStock = stock <= threshold;
-
-                        return (
-                          <tr key={ing.id} className={`hover:bg-gray-50 ${isLowStock ? "bg-red-50" : ""}`}>
-                            <td className="p-2 border-b flex items-center gap-2">
-                              {ing.name}
-                              {isLowStock && (
-                                <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">
-                                  Low Stock!
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-2 border-b">{ing.suppliers?.name || "-"}</td>
-                            <td className="p-2 border-b">{ing.units?.name || "-"}</td>
-                            <td className={`p-2 border-b ${isLowStock ? "text-red-600 font-semibold" : ""}`}>
-                              {stock}
-                            </td>
-                            <td className={`p-2 border-b ${isLowStock ? "text-red-600 font-semibold" : ""}`}>
-                              {threshold}
-                            </td>
-                            <td className="p-2 border-b">
-                              <button
-                                className="text-blue-600 hover:underline mr-2"
-                                onClick={() => handleEdit(ing)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                className="text-red-600 hover:underline"
-                                onClick={() => handleDelete(ing.id)}
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Edit Modal */}
-            <Dialog open={editOpen} onOpenChange={setEditOpen}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Edit Ingredient</DialogTitle>
-                </DialogHeader>
-                {selectedIng && (
-                  <div className="space-y-3">
-                    <Input
-                      value={editForm.name || ""}
-                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                      placeholder="Name"
-                    />
-                    <Input
-                      type="number"
-                      value={editForm.stock ?? ""}
-                      onChange={(e) => setEditForm({ ...editForm, stock: Number(e.target.value) })}
-                      placeholder="Stock"
-                    />
-                    <Input
-                      type="number"
-                      value={editForm.threshold ?? ""}
-                      onChange={(e) => setEditForm({ ...editForm, threshold: Number(e.target.value) })}
-                      placeholder="Threshold"
-                    />
-                    <Input
-                      type="number"
-                      value={editForm.unitCost ?? ""}
-                      onChange={(e) => setEditForm({ ...editForm, unitCost: Number(e.target.value) })}
-                      placeholder="Unit Cost"
-                    />
-                  </div>
+                    );
+                  })
                 )}
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-                  <Button onClick={handleSave}>Save</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-            {/* Suppliers Tab */}
-            {activeTab === "suppliers" && (
-              <div>
-                <div className="mb-2">
-                  <input
-                    type="text"
-                    placeholder="Search suppliers..."
-                    className="border border-gray-300 rounded-md px-3 py-1 w-full max-w-sm"
-                    value={supplierSearch}
-                    onChange={(e) => setSupplierSearch(e.target.value)}
-                  />
-                </div>
-                <div className="overflow-x-auto max-h-[500px] border border-gray-300 rounded-md">
-                  <table className="w-full border-collapse">
-                    <thead className="bg-gray-100 sticky top-0">
-                      <tr>
-                        <th className="p-2 border-b">Name</th>
-                        <th className="p-2 border-b">Address</th>
-                        <th className="p-2 border-b">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredSuppliers.map((sup) => (
-                        <tr key={sup.id} className="hover:bg-gray-50">
-                          <td className="p-2 border-b">{sup.name}</td>
-                          <td className="p-2 border-b">{sup.address || "-"}</td>
-                          <td className="p-2 border-b">
-                            <button className="text-blue-600 hover:underline mr-2">Edit</button>
-                            <button className="text-red-600 hover:underline">Delete</button>
-                          </td>
-                        </tr>
-                      ))}
-                      {filteredSuppliers.length === 0 && (
-                        <tr>
-                          <td colSpan={3} className="p-2 text-center text-gray-500">
-                            No suppliers found.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Units Tab */}
-            {activeTab === "units" && (
-              <div>
-                <div className="mb-2">
-                  <input
-                    type="text"
-                    placeholder="Search units..."
-                    className="border border-gray-300 rounded-md px-3 py-1 w-full max-w-sm"
-                    value={unitSearch}
-                    onChange={(e) => setUnitSearch(e.target.value)}
-                  />
-                </div>
-                <div className="overflow-x-auto max-h-[500px] border border-gray-300 rounded-md">
-                  <table className="w-full border-collapse">
-                    <thead className="bg-gray-100 sticky top-0">
-                      <tr>
-                        <th className="p-2 border-b">Name</th>
-                        <th className="p-2 border-b">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredUnits.map((unit) => (
-                        <tr key={unit.id} className="hover:bg-gray-50">
-                          <td className="p-2 border-b">{unit.name}</td>
-                          <td className="p-2 border-b">
-                            <button className="text-blue-600 hover:underline mr-2">Edit</button>
-                            <button className="text-red-600 hover:underline">Delete</button>
-                          </td>
-                        </tr>
-                      ))}
-                      {filteredUnits.length === 0 && (
-                        <tr>
-                          <td colSpan={2} className="p-2 text-center text-gray-500">
-                            No units found.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+        {/* Add/Edit Ingredient Modal */}
+        <AddInventoryModal
+          isOpen={showAddModal}
+          onClose={handleModalClose}
+          onSave={handleModalSave}
+          editingItem={editingItem}
+        />
       </div>
     </AdminLayout>
   );

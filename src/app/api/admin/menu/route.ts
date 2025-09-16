@@ -1,175 +1,216 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { menu_type, menu_status } from "@prisma/client";
 
-// GET all menu items with sizes and ingredients
+// ---------- TYPES ----------
+
+interface IngredientInput {
+  ingredientId: number;
+  qtyNeeded: number;
+}
+
+interface SizeInput {
+  label: string;
+  price: number;
+  ingredients: IngredientInput[];
+}
+
+interface MenuInput {
+  name: string;
+  image: string;
+  type: menu_type;
+  status: menu_status;
+  category?: string;
+  sizes: SizeInput[];
+}
+
+// Strict allowed size keys
+type SizeKey = "small" | "medium" | "large";
+
+interface IngredientsBySize {
+  small: any[];
+  medium: any[];
+  large: any[];
+}
+
+// ---------- GET ALL MENUS ----------
 export async function GET() {
-  const menus = await prisma.menu.findMany({
-    include: {
-      sizes: true,
-      recipes: {
-        include: {
-          recipeingredients: {
-            include: { ingredients: true },
+  try {
+    const menus = await prisma.menu.findMany({
+      include: {
+        sizes: {
+          include: {
+            recipes: {
+              include: {
+                recipeingredients: {
+                  include: { ingredients: true },
+                },
+              },
+            },
           },
         },
       },
-    },
-  });
+    });
 
-  const result = menus.map(menu => ({
-    ...menu,
-    ingredients: menu.recipes.flatMap(recipe =>
-      recipe.recipeingredients.map(ri => ({
-        id: ri.ingredients.id,
-        name: ri.ingredients.name,
-        qtyNeeded: ri.qtyNeeded,
-        recipeId: recipe.id,
-      }))
-    ),
-  }));
+    const result = (menus || []).map((menu) => {
+      const ingredientsBySize: IngredientsBySize = {
+        small: [],
+        medium: [],
+        large: [],
+      };
 
-  return NextResponse.json(result);
+      menu.sizes.forEach((size) => {
+        const sizeKey = size.label.toLowerCase() as SizeKey;
+
+        size.recipes.forEach((recipe) => {
+          recipe.recipeingredients.forEach((ri) => {
+            ingredientsBySize[sizeKey].push({
+              id: ri.ingredients?.id ?? null,
+              name: ri.ingredients?.name ?? "Unknown",
+              quantity: ri.qtyNeeded ?? 0,
+              recipeId: recipe.id,
+              sizeId: size.id,
+            });
+          });
+        });
+      });
+
+      return {
+        ...menu,
+        sizes: menu.sizes.map((size) => ({
+          ...size,
+          recipes: size.recipes.map((recipe) => ({
+            ...recipe,
+            recipeingredients: recipe.recipeingredients.map((ri) => ({
+              id: ri.ingredients?.id ?? null,
+              name: ri.ingredients?.name ?? "Unknown",
+              qtyNeeded: ri.qtyNeeded ?? 0,
+              recipeId: recipe.id,
+              sizeId: size.id,
+            })),
+          })),
+        })),
+        ingredients: ingredientsBySize,
+      };
+    });
+
+    return NextResponse.json(result);
+  } catch (err: any) {
+    console.error("GET /menu error:", err);
+    return NextResponse.json(
+      { error: err.message || "Failed to fetch menus" },
+      { status: 500 }
+    );
+  }
 }
 
-// POST create new menu item
+// ---------- CREATE NEW MENU ----------
 export async function POST(req: Request) {
-  const data = await req.json();
+  try {
+    const data: MenuInput = await req.json();
 
-  // Create menu first
-  const menu = await prisma.menu.create({
-    data: {
-      name: data.name,
-      image: data.image,
-      type: data.type,
-      status: data.status,
-    },
-  });
+    // Validate request payload
+    if (!data.name || !data.type || !data.status || !Array.isArray(data.sizes)) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+    }
 
-  // Create sizes
-  const createdSizes = await Promise.all(
-    data.sizes.map((size: any) =>
-      prisma.sizes.create({
-        data: { label: size.label, price: size.price, menuId: menu.id },
-      })
-    )
-  );
+    // Create the menu
+    const menu = await prisma.menu.create({
+      data: {
+        name: data.name,
+        image: data.image ?? "",
+        type: data.type,
+        status: data.status,
+        category: data.category ?? null,
+      },
+    });
 
-  // Create recipes with proper menu & size connection
-  await Promise.all(
-    data.recipes.map((recipe: any) => {
-      const size = createdSizes.find(s => s.label === recipe.sizeLabel);
-      if (!size) return null;
-      return prisma.recipes.create({
+    // Create sizes and associated recipes
+    for (const s of data.sizes) {
+      if (!s.label || typeof s.price !== "number") continue;
+
+      const size = await prisma.sizes.create({
         data: {
-          name: `Recipe for size ${size.label}`,
-          menu: { connect: { id: menu.id } },
-          sizes: { connect: { id: size.id } },
-          recipeingredients: {
-            create: recipe.ingredients.map((ing: any) => ({
-              ingredientId: ing.ingredientId,
-              qtyNeeded: ing.qtyNeeded,
-            })),
-          },
+          label: s.label,
+          price: s.price,
+          menuId: menu.id,
+          // accept optional cupId from client
+          ...(s as any).cupId ? { cupId: Number((s as any).cupId) } : {},
         },
       });
-    })
-  );
 
-  const fullMenu = await prisma.menu.findUnique({
-    where: { id: menu.id },
-    include: {
-      sizes: true,
-      recipes: { include: { recipeingredients: { include: { ingredients: true } } } },
-    },
-  });
+      // Create a recipe for this size if ingredients are provided
+      if (Array.isArray(s.ingredients) && s.ingredients.length > 0) {
+        await prisma.recipes.create({
+          data: {
+            name: `Recipe for ${s.label}`,
+            menuId: menu.id,
+            sizeId: size.id,
+            recipeingredients: {
+              create: s.ingredients
+                .filter((i) => i.ingredientId && i.qtyNeeded)
+                .map((i) => ({
+                  ingredientId: i.ingredientId,
+                  qtyNeeded: i.qtyNeeded,
+                })),
+            },
+          },
+        });
+      }
+    }
 
-  return NextResponse.json(fullMenu);
-}
-
-// PUT update menu item
-export async function PUT(req: Request) {
-  const data = await req.json();
-
-  // Get existing size IDs for this menu
-  const sizeIds = (await prisma.sizes.findMany({
-    where: { menuId: data.id },
-    select: { id: true },
-  })).map(s => s.id);
-
-  // Delete old recipes & sizes
-  if (sizeIds.length > 0) {
-    await prisma.recipes.deleteMany({ where: { sizeId: { in: sizeIds } } });
-  }
-  await prisma.sizes.deleteMany({ where: { menuId: data.id } });
-
-  // Update menu
-  await prisma.menu.update({
-    where: { id: data.id },
-    data: {
-      name: data.name,
-      image: data.image,
-      type: data.type,
-      status: data.status,
-    },
-  });
-
-  // Create new sizes
-  const createdSizes = await Promise.all(
-    data.sizes.map((size: any) =>
-      prisma.sizes.create({
-        data: { label: size.label, price: size.price, menuId: data.id },
-      })
-    )
-  );
-
-  // Create new recipes
-  await Promise.all(
-    data.recipes.map((recipe: any) => {
-      const size = createdSizes.find(s => s.label === recipe.sizeLabel);
-      if (!size) return null;
-      return prisma.recipes.create({
-        data: {
-          name: `Recipe for size ${size.label}`,
-          menu: { connect: { id: data.id } },
-          sizes: { connect: { id: size.id } },
-          recipeingredients: {
-            create: recipe.ingredients.map((ing: any) => ({
-              ingredientId: ing.ingredientId,
-              qtyNeeded: ing.qtyNeeded,
-            })),
+    // Fetch the full menu with relations
+    const fullMenu = await prisma.menu.findUnique({
+      where: { id: menu.id },
+      include: {
+        sizes: {
+          include: {
+            recipes: {
+              include: {
+                recipeingredients: {
+                  include: { ingredients: true },
+                },
+              },
+            },
           },
         },
+      },
+    });
+
+    // Build structured ingredients by size for the response
+    const ingredientsBySize: IngredientsBySize = {
+      small: [],
+      medium: [],
+      large: [],
+    };
+
+    if (fullMenu?.sizes) {
+      fullMenu.sizes.forEach((size) => {
+        const sizeKey = size.label.toLowerCase() as SizeKey;
+
+        size.recipes.forEach((recipe) => {
+          recipe.recipeingredients.forEach((ri) => {
+            ingredientsBySize[sizeKey].push({
+              id: ri.ingredients?.id ?? null,
+              name: ri.ingredients?.name ?? "Unknown",
+              quantity: ri.qtyNeeded ?? 0,
+              recipeId: recipe.id,
+              sizeId: size.id,
+            });
+          });
+        });
       });
-    })
-  );
+    }
 
-  const fullMenu = await prisma.menu.findUnique({
-    where: { id: data.id },
-    include: {
-      sizes: true,
-      recipes: { include: { recipeingredients: { include: { ingredients: true } } } },
-    },
-  });
-
-  return NextResponse.json(fullMenu);
-}
-
-// DELETE menu item
-export async function DELETE(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const id = Number(searchParams.get("id"));
-
-  // Get all size IDs for this menu
-  const sizeIds = (await prisma.sizes.findMany({
-    where: { menuId: id },
-    select: { id: true },
-  })).map(s => s.id);
-
-  if (sizeIds.length > 0) {
-    await prisma.recipes.deleteMany({ where: { sizeId: { in: sizeIds } } });
+    return NextResponse.json({
+      ...fullMenu,
+      ingredients: ingredientsBySize,
+    });
+  } catch (err: any) {
+    console.error("POST /menu error:", err);
+    return NextResponse.json(
+      { error: err.message || "Failed to create menu" },
+      { status: 500 }
+    );
   }
-  await prisma.sizes.deleteMany({ where: { menuId: id } });
-  await prisma.menu.delete({ where: { id } });
-
-  return NextResponse.json({ message: "Menu deleted" });
 }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import CashierLayout from "../components/CashierLayout";
 import MenuModal from "../components/OrderModal"; // reuse your modal for adding to cart
 import CheckoutModal from "../components/CheckoutModal";
@@ -20,6 +21,7 @@ const categories = [
 
 export default function PosPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
 
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [filteredMenu, setFilteredMenu] = useState<MenuItem[]>([]);
@@ -84,7 +86,10 @@ export default function PosPage() {
   const removeFromCart = (cartKey: string) =>
     setCart((prev) => prev.filter((c) => c.cartKey !== cartKey));
 
-  const clearCart = () => setCart([]);
+  const clearCart = () => {
+    setCart([]);
+    router.push("/cashier/orders");
+  };
 
   if (status === "loading") return <p>Loading session...</p>;
 

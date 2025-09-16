@@ -60,13 +60,13 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
       >
         {/* Top */}
         <div>
-          <div className="flex items-center justify-between px-4 py-4 border-b border-[#B0A695]">
-            <h2 className="text-xl font-bold">Coffee Win</h2>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#B0A695]">
+            <h2 className="text-2xl font-bold">Coffee Win</h2>
             <button
               onClick={() => setOpen(false)}
-              className="p-1 rounded-md bg-[#B0A695]"
+              className="p-2 rounded-md bg-[#B0A695] hover:bg-[#B0A695]/80"
             >
-              <X />
+              <X className="text-[#F3EEEA]" />
             </button>
           </div>
 
@@ -75,14 +75,14 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
               <Link
                 key={item.path}
                 href={item.path}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
                   pathname === item.path
                     ? "bg-[#F3EEEA] text-[#776B5D]"
-                    : "hover:bg-[#B0A695]"
+                    : "bg-[#776B5D] text-[#F3EEEA] hover:bg-[#B0A695] border border-[#B0A695]"
                 }`}
               >
                 <item.icon
-                  className={`w-5 h-5 ${
+                  className={`w-6 h-6 ${
                     pathname === item.path ? "text-[#776B5D]" : "text-[#F3EEEA]"
                   }`}
                 />
@@ -112,17 +112,17 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           <div className="flex flex-col gap-2">
             <Link
               href="/admin/settings"
-              className="flex items-center gap-2 w-full h-10 px-3 bg-[#776B5D] rounded-lg text-[#F3EEEA]"
+              className="flex items-center gap-2 w-full h-10 px-3 bg-[#776B5D] rounded-lg text-[#F3EEEA] text-sm hover:bg-[#776B5D]/90 transition-colors"
             >
               <Settings className="w-5 h-5" />
-              <span className="text-sm leading-4 font-normal">Settings</span>
+              <span className="font-normal">Settings</span>
             </Link>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 w-full h-10 px-3 bg-[#776B5D] rounded-lg text-[#F3EEEA]"
+              className="flex items-center gap-2 w-full h-10 px-3 bg-[#776B5D] rounded-lg text-[#F3EEEA] text-sm hover:bg-[#776B5D]/90 transition-colors"
             >
               <LogOut className="w-5 h-5" />
-              <span className="text-sm leading-4 font-normal">Sign Out</span>
+              <span className="font-normal">Sign Out</span>
             </button>
           </div>
         </div>

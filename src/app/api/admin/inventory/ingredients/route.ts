@@ -35,6 +35,7 @@ export async function POST(req: Request) {
   const ingredient = await prisma.ingredients.create({
     data: {
       name: data.name,
+      category: data.category || '',
       supplierId: data.supplierId || null,
       unitId: data.unitId || null,
       packagePrice: data.packagePrice || 0,
@@ -70,6 +71,7 @@ export async function PUT(req: Request) {
     where: { id: data.id },
     data: {
       name: data.name,
+      category: data.category || '',
       supplierId: data.supplierId || null,
       unitId: data.unitId || null,
       packagePrice: data.packagePrice || 0,

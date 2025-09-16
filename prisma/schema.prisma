@@ -10,6 +10,7 @@ datasource db {
 model ingredients {
   id                Int                 @id @default(autoincrement()) @db.UnsignedInt
   name              String
+  category          String              @db.VarChar(64)
   supplierId        Int?                @db.UnsignedInt
   unitId            Int?                @db.UnsignedInt
   packagePrice      Decimal?            @db.Decimal(10, 2)
@@ -26,6 +27,7 @@ model ingredients {
   @@index([name], map: "idx_ingredients_name")
   @@index([supplierId], map: "idx_ingredients_supplierId")
   @@index([unitId], map: "idx_ingredients_unitId")
+  @@index([category], map: "idx_ingredients_category")
 }
 
 model menu {
@@ -46,6 +48,7 @@ model menu {
 
   @@index([status], map: "idx_menu_status")
   @@index([type], map: "idx_menu_type")
+  @@index([category], map: "idx_menu_category")
 }
 
 model orderitemaddons {
@@ -80,6 +83,14 @@ model orderitems {
   @@index([sizeId], map: "idx_orderitems_sizeId")
 }
 
+model cups {
+  id        Int      @id @default(autoincrement()) @db.UnsignedInt
+  name      String
+  sizes     sizes[]  @relation("CupSizes")
+  createdAt DateTime @default(now()) @db.Timestamp(0)
+  updatedAt DateTime @default(now()) @db.Timestamp(0)
+}
+
 model orders {
   id            Int                   @id @default(autoincrement()) @db.UnsignedInt
   userId        Int                   @db.UnsignedInt
@@ -95,6 +106,7 @@ model orders {
 
   @@index([status], map: "idx_orders_status")
   @@index([userId], map: "idx_orders_userId")
+  @@index([paymentMethod], map: "idx_orders_paymentMethod")
 }
 
 model recipeingredients {
@@ -127,18 +139,24 @@ model recipes {
 }
 
 model sizes {
-  id         Int          @id @default(autoincrement()) @db.UnsignedInt
-  label      String       @db.VarChar(64)
-  price      Decimal      @db.Decimal(10, 2)
-  menuId     Int          @db.UnsignedInt
-  createdAt  DateTime     @default(now()) @db.Timestamp(0)
-  updatedAt  DateTime     @default(now()) @db.Timestamp(0)
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  label      String   @db.VarChar(64)
+  price      Decimal  @db.Decimal(10, 2)
+  menuId     Int      @db.UnsignedInt
+  createdAt  DateTime @default(now()) @db.Timestamp(0)
+  updatedAt  DateTime @default(now()) @db.Timestamp(0)
   orderitems orderitems[]
   recipes    recipes[]
-  menu       menu         @relation(fields: [menuId], references: [id], onDelete: Cascade, map: "fk_sizes_menu")
+  menu       menu     @relation(fields: [menuId], references: [id], onDelete: Cascade, map: "fk_sizes_menu")
+
+  cupId Int? @db.UnsignedInt
+  cup   cups? @relation("CupSizes", fields: [cupId], references: [id], onDelete: SetNull)
 
   @@index([menuId], map: "idx_sizes_menuId")
+  @@index([cupId], map: "idx_sizes_cupId")
+  @@unique([menuId, label], map: "uq_sizes_menu_label")
 }
+
 
 model suppliers {
   id          Int           @id @default(autoincrement()) @db.UnsignedInt

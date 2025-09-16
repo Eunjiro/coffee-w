@@ -1,377 +1,379 @@
-"use client";
+'use client';
 
-import React, { useEffect, useState } from "react";
-import AdminLayout from "../components/AdminLayout";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from "recharts";
-import { useSession } from "next-auth/react";
+import React, { useState, useEffect, useMemo } from 'react';
+import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+import { TrendingUp, DollarSign, ShoppingCart, Download, RefreshCw } from 'lucide-react';
+import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
+import AdminLayout from '../components/AdminLayout';
 
-interface OrderItemAddon {
-  id: number;
-  addonId: number;
-  price: number;
-  menu: { name: string };
-}
-
-interface OrderItem {
-  id: number;
-  menuId: number;
-  menu: { name: string };
-  size?: { label: string };
+type SaleItem = {
+  name: string;
   quantity: number;
-  orderitemaddons: OrderItemAddon[];
-}
+  unitPrice: number;
+};
 
-interface Order {
-  id: number;
-  userId: number;
+type Sale = {
+  id: string;
+  orderId: string;
+  customerName: string;
+  items: SaleItem[];
   total: number;
-  status: "PENDING" | "PAID" | "CANCELLED" | "VOID";
-  paymentMethod?: "CASH" | "CARD" | "GCASH" | "OTHER";
-  paidAt?: string;
-  createdAt: string;
-  updatedAt: string;
-  orderitems: OrderItem[];
-  users: { name: string; email: string };
-}
+  paymentMethod: 'cash' | 'gcash';
+  status: 'completed' | 'refunded' | 'cancelled';
+  timestamp: Date;
+};
 
-type TimeRange = "DAILY" | "WEEKLY" | "MONTHLY";
+type TopSellingItem = {
+  name: string;
+  quantity: number;
+  revenue: number;
+};
 
-export default function SalesPage() {
-  const { data: session, status } = useSession();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+type RevenueByHour = {
+  hour: string;
+  revenue: number;
+  orders: number;
+};
 
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [expandedOrders, setExpandedOrders] = useState<number[]>([]);
-  const [timeRange, setTimeRange] = useState<TimeRange>("DAILY");
+type RevenueByDay = {
+  date: string;
+  revenue: number;
+  orders: number;
+};
 
-  const fetchOrders = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin/sales/orders");
-      const data = await res.json();
-      setOrders(data);
-    } catch (error) {
-      console.error("Failed to fetch orders:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+type PaymentMethodBreakdown = {
+  method: string;
+  count: number;
+  revenue: number;
+  percentage: number;
+};
 
+type Analytics = {
+  totalRevenue: number;
+  totalOrders: number;
+  averageOrderValue: number;
+  topSellingItems: TopSellingItem[];
+  revenueByHour: RevenueByHour[];
+  revenueByDay: RevenueByDay[];
+  paymentMethodBreakdown: PaymentMethodBreakdown[];
+};
+
+const Sales: React.FC = () => {
+  const [salesData, setSalesData] = useState<Sale[]>([]);
+  const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'all'>('week');
+  const [selectedStatus] = useState<'all' | 'completed' | 'refunded' | 'cancelled'>('completed');
+
+  // Fetch sales data from the API based on selected filters
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    const fetchSalesData = async () => {
+      try {
+        const res = await fetch(`/api/admin/sales/orders?dateRange=${dateRange}&status=${selectedStatus}`);
+        const data = await res.json();
 
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch =
-      order.users.name.toLowerCase().includes(search.toLowerCase()) ||
-      order.users.email.toLowerCase().includes(search.toLowerCase()) ||
-      order.id.toString() === search;
-    const matchesStatus = statusFilter === "ALL" || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+        // Log the response data for debugging
+        console.log('API Response:', data);
 
-  const toggleExpand = (id: number) => {
-    setExpandedOrders((prev) =>
-      prev.includes(id) ? prev.filter((oid) => oid !== id) : [...prev, id]
-    );
+        // Check if data is an array
+        if (Array.isArray(data)) {
+          setSalesData(data);
+        } else {
+          console.error('Sales data is not an array:', data);
+          setSalesData([]); // Handle the case where the data is not in an array
+        }
+      } catch (error) {
+        console.error('Error fetching sales data:', error);
+        setSalesData([]); // Handle the case of a failed API call
+      }
+    };
+
+    fetchSalesData();
+  }, [dateRange, selectedStatus]);
+
+  const generateAnalytics = (sales: Sale[]): Analytics => {
+    if (!Array.isArray(sales)) {
+      console.error('Expected sales to be an array, but received:', sales);
+      return {
+        totalRevenue: 0,
+        totalOrders: 0,
+        averageOrderValue: 0,
+        topSellingItems: [],
+        revenueByHour: [],
+        revenueByDay: [],
+        paymentMethodBreakdown: [],
+      };
+    }
+
+    const completedSales = sales.filter((sale) => sale.status === 'completed');
+    const totalRevenue = completedSales.reduce((sum: number, sale: Sale) => sum + sale.total, 0);
+    const totalOrders = completedSales.length;
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    // Top selling items
+    const itemCounts = new Map<string, TopSellingItem>();
+    completedSales.forEach((sale) => {
+      sale.items.forEach((item: SaleItem) => {
+        const key = item.name;
+        if (itemCounts.has(key)) {
+          const existing = itemCounts.get(key)!;
+          existing.quantity += item.quantity;
+          existing.revenue += item.unitPrice * item.quantity;
+        } else {
+          itemCounts.set(key, {
+            name: item.name,
+            quantity: item.quantity,
+            revenue: item.unitPrice * item.quantity,
+          });
+        }
+      });
+    });
+    const topSellingItems = Array.from(itemCounts.values())
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 5);
+
+    // Revenue by hour
+    const revenueByHour: RevenueByHour[] = Array.from({ length: 24 }, (_, hour) => {
+      const hourSales = completedSales.filter((sale) => sale.timestamp.getHours() === hour);
+      return {
+        hour: `${hour.toString().padStart(2, '0')}:00`,
+        revenue: hourSales.reduce((sum: number, sale: Sale) => sum + sale.total, 0),
+        orders: hourSales.length,
+      };
+    });
+
+    // Revenue by day (last 7 days)
+    const revenueByDay: RevenueByDay[] = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - i));
+      const daySales = completedSales.filter((sale) =>
+        sale.timestamp.toDateString() === date.toDateString()
+      );
+      return {
+        date: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+        revenue: daySales.reduce((sum: number, sale: Sale) => sum + sale.total, 0),
+        orders: daySales.length,
+      };
+    });
+
+    // Payment method breakdown
+    const paymentMethods: Array<'cash' | 'gcash'> = ['cash', 'gcash'];
+    const paymentMethodBreakdown: PaymentMethodBreakdown[] = paymentMethods.map((method) => {
+      const methodSales = completedSales.filter((sale) => sale.paymentMethod === method);
+      const revenue = methodSales.reduce((sum: number, sale: Sale) => sum + sale.total, 0);
+      return {
+        method: method.charAt(0).toUpperCase() + method.slice(1),
+        count: methodSales.length,
+        revenue,
+        percentage: totalOrders > 0 ? (methodSales.length / totalOrders) * 100 : 0,
+      };
+    });
+
+    return {
+      totalRevenue,
+      totalOrders,
+      averageOrderValue,
+      topSellingItems,
+      revenueByHour,
+      revenueByDay,
+      paymentMethodBreakdown,
+    };
   };
 
-  // --- Sales Analytics ---
-  // Convert Decimal -> number
-  const totalSales = orders.reduce((sum, order) => sum + Number(order.total), 0);
+  const analytics = useMemo(() => generateAnalytics(salesData), [salesData]);
 
-  const totalOrders = orders.length;
+  const formatCurrency = (amount: number) => `₱${amount.toLocaleString()}`;
+  const formatNumber = (num: number) => num.toLocaleString();
 
-  const salesByStatus = ["PAID", "PENDING", "CANCELLED", "VOID"].map((status) => ({
-    status,
-    count: orders.filter((o) => o.status === status).length,
-  }));
-
-  // --- Sales Over Time Grouping ---
-  const groupKey = (date: Date): string => {
-    if (timeRange === "DAILY") {
-      return date.toLocaleDateString();
-    }
-    if (timeRange === "WEEKLY") {
-      const firstDay = new Date(date);
-      firstDay.setDate(date.getDate() - date.getDay());
-      return `Week of ${firstDay.toLocaleDateString()}`;
-    }
-    if (timeRange === "MONTHLY") {
-      return `${date.toLocaleString("default", { month: "short" })} ${date.getFullYear()}`;
-    }
-    return date.toLocaleDateString();
-  };
-
-  const salesOverTime = orders.reduce((acc: Record<string, number>, order) => {
-    const date = new Date(order.createdAt);
-    const key = groupKey(date);
-    acc[key] = (acc[key] || 0) + Number(order.total);
-    return acc;
-  }, {});
-
-
-  const salesOverTimeData = Object.entries(salesOverTime).map(([date, total]) => ({
-    date,
-    total: Number(total),
-  }));
-
-
-  // --- Top Selling Menu Items ---
-  const menuSales: Record<string, number> = {};
-  orders.forEach((order) =>
-    order.orderitems.forEach((item) => {
-      menuSales[item.menu.name] = (menuSales[item.menu.name] || 0) + item.quantity;
-    })
+  const actions = (
+    <>
+      <Button variant="secondary" icon={Download}>
+        Export
+      </Button>
+      <Button icon={RefreshCw}>
+        Refresh
+      </Button>
+    </>
   );
-  const topMenuData = Object.entries(menuSales)
-    .map(([name, quantity]) => ({ name, quantity }))
-    .sort((a, b) => b.quantity - a.quantity)
-    .slice(0, 10);
-
-  // --- Payment Methods Pie ---
-  const paymentCounts: Record<string, number> = {};
-  orders.forEach((order) => {
-    if (order.paymentMethod) {
-      paymentCounts[order.paymentMethod] = (paymentCounts[order.paymentMethod] || 0) + 1;
-    }
-  });
-  const paymentData = Object.entries(paymentCounts).map(([method, count]) => ({
-    name: method,
-    value: count,
-  }));
-  const COLORS = ["#3182ce", "#38a169", "#f6ad55", "#e53e3e"];
-
-  if (status === "loading") {
-    return <p>Loading session...</p>;
-  }
-
-  if (!session) {
-    if (typeof window !== "undefined") {
-      window.location.href = "/";
-    }
-    return null;
-  }
-
-  if (session.user.role !== "ADMIN") {
-    if (typeof window !== "undefined") {
-      window.location.href = "/unauthorized";
-    }
-    return null;
-  }
 
   return (
     <AdminLayout>
-      <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4">Sales Management</h1>
+    <div className="bg-[#F3EEEA] p-8 h-full overflow-y-auto custom-scrollbar">
+      <PageHeader title="Sales Analytics" description="View detailed sales reports and analytics" actions={actions} />
 
-        {/* --- Sales Preview Cards --- */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="p-4 bg-blue-100 rounded-md text-center">
-            <p className="text-gray-700">Total Sales</p>
-            <p className="text-2xl font-bold text-blue-700">
-              ₱{totalSales.toFixed(2)}
-            </p>
-          </div>
-          <div className="p-4 bg-green-100 rounded-md text-center">
-            <p className="text-gray-700">Total Orders</p>
-            <p className="text-2xl font-bold text-green-700">{totalOrders}</p>
-          </div>
-          <div className="p-4 bg-yellow-100 rounded-md text-center">
-            <p className="text-gray-700">Orders by Status</p>
-            {salesByStatus.map((s) => (
-              <p key={s.status} className="text-yellow-700">
-                {s.status}: {s.count}
-              </p>
-            ))}
-          </div>
+      {/* Filters */}
+      <div className="flex flex-wrap gap-4 mb-6">
+        <div className="flex gap-2">
+          {['all', 'today', 'week', 'month'].map((range) => (
+            <button
+              key={range}
+              onClick={() => setDateRange(range as any)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors capitalize ${
+                dateRange === range ? 'bg-[#776B5D] text-[#F3EEEA]' : 'bg-white text-[#776B5D] hover:bg-[#B0A695]/20'
+              }`}
+            >
+              {range}
+            </button>
+          ))}
         </div>
+      </div>
 
-        {/* --- Graphs --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className="p-4 border border-gray-300 rounded-md bg-white">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="font-semibold">Sales Over Time</h2>
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value as TimeRange)}
-                className="border rounded-md px-2 py-1 text-sm"
-              >
-                <option value="DAILY">Daily</option>
-                <option value="WEEKLY">Weekly</option>
-                <option value="MONTHLY">Monthly</option>
-              </select>
+      {/* Key Metrics */}
+      <div className="gap-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-8">
+        <div className="bg-white shadow-sm p-6 rounded-xl">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-medium text-[#776B5D]/70 text-sm">Total Sales</p>
+              <p className="font-bold text-[#776B5D] text-2xl">{formatCurrency(analytics.totalRevenue)}</p>
             </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={salesOverTimeData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="total" stroke="#3182ce" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="bg-green-100 p-3 rounded-full">
+              <DollarSign className="w-6 h-6 text-green-600" />
+            </div>
           </div>
+        </div>
 
-          <div className="p-4 border border-gray-300 rounded-md bg-white">
-            <h2 className="font-semibold mb-2">Top Selling Menu Items</h2>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={topMenuData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="quantity" fill="#38a169" />
-              </BarChart>
-            </ResponsiveContainer>
+        <div className="bg-white shadow-sm p-6 rounded-xl">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-medium text-[#776B5D]/70 text-sm">Total Orders</p>
+              <p className="font-bold text-[#776B5D] text-2xl">{formatNumber(analytics.totalOrders)}</p>
+            </div>
+            <div className="bg-blue-100 p-3 rounded-full">
+              <ShoppingCart className="w-6 h-6 text-blue-600" />
+            </div>
           </div>
+        </div>
 
-          <div className="p-4 border border-gray-300 rounded-md bg-white md:col-span-2">
-            <h2 className="font-semibold mb-2">Payment Methods Distribution</h2>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={paymentData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  label
-                >
-                  {paymentData.map((entry, index) => (
-                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Legend />
-              </PieChart>
+        <div className="bg-white shadow-sm p-6 rounded-xl">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-medium text-[#776B5D]/70 text-sm">Best Seller</p>
+              <p className="font-bold text-[#776B5D] text-2xl">{analytics.topSellingItems[0]?.name || 'N/A'}</p>
+            </div>
+            <div className="bg-purple-100 p-3 rounded-full">
+              <TrendingUp className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="gap-6 grid grid-cols-1 lg:grid-cols-2 mb-8">
+        <div className="bg-white shadow-sm p-6 rounded-xl">
+          <h3 className="mb-4 font-semibold text-[#776B5D] text-lg">Revenue by Day</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={analytics.revenueByDay}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#B0A695" />
+                <XAxis dataKey="date" stroke="#776B5D" />
+                <YAxis stroke="#776B5D" />
+                <Tooltip contentStyle={{ backgroundColor: '#F3EEEA', border: '1px solid #B0A695', borderRadius: '8px' }} />
+                <Area type="monotone" dataKey="revenue" stroke="#776B5D" fill="#776B5D" fillOpacity={0.3} />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* --- Orders Table --- */}
-        <div className="flex flex-col sm:flex-row justify-between gap-2 mb-4">
-          <input
-            type="text"
-            placeholder="Search by customer name, email, or order ID..."
-            className="border border-gray-300 rounded-md px-3 py-1 w-full sm:max-w-md"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          <select
-            className="border border-gray-300 rounded-md px-3 py-1 w-full sm:max-w-xs"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="ALL">All Status</option>
-            <option value="PENDING">Pending</option>
-            <option value="PAID">Paid</option>
-            <option value="CANCELLED">Cancelled</option>
-            <option value="VOID">Void</option>
-          </select>
+        <div className="bg-white shadow-sm p-6 rounded-xl">
+          <h3 className="mb-4 font-semibold text-[#776B5D] text-lg">Top Selling Items</h3>
+          <div className="space-y-4">
+            {analytics.topSellingItems.length === 0 ? (
+              <div className="py-8 text-[#776B5D]/70 text-center">No sales data.</div>
+            ) : (
+              analytics.topSellingItems.map((item, index) => (
+                <div key={item.name} className="flex justify-between items-center">
+                  <div className="flex items-center">
+                    <div className="flex justify-center items-center bg-[#776B5D] mr-3 rounded-full w-8 h-8 font-bold text-white text-sm">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <p className="font-medium text-[#776B5D]">{item.name}</p>
+                      <p className="text-[#776B5D]/70 text-sm">{item.quantity} sold</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-[#776B5D]">{formatCurrency(item.revenue)}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
+      </div>
 
-        <div className="overflow-x-auto max-h-[600px] border border-gray-300 rounded-md">
-          <table className="w-full border-collapse">
-            <thead className="bg-gray-100 sticky top-0 z-10">
-              <tr>
-                <th className="p-2 border-b text-left">Order ID</th>
-                <th className="p-2 border-b text-left">Customer</th>
-                <th className="p-2 border-b text-left">Status</th>
-                <th className="p-2 border-b text-left">Payment</th>
-                <th className="p-2 border-b text-left">Total</th>
-                <th className="p-2 border-b text-left">Date</th>
-                <th className="p-2 border-b text-left">Actions</th>
+      {/* Recent Sales Section */}
+      <div className="bg-white shadow-sm p-6 rounded-xl">
+        <h3 className="mb-4 font-semibold text-[#776B5D] text-lg">Recent Sales</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-[#B0A695]/20 border-b">
+                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Order ID</th>
+                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Customer</th>
+                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Items</th>
+                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Total</th>
+                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Payment</th>
+                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Status</th>
+                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Time</th>
               </tr>
             </thead>
             <tbody>
-              {filteredOrders.map((order) => (
-                <React.Fragment key={order.id}>
-                  <tr className="hover:bg-gray-50 cursor-pointer">
-                    <td className="p-2 border-b">{order.id}</td>
-                    <td className="p-2 border-b">{order.users.name}</td>
-                    <td className="p-2 border-b">{order.status}</td>
-                    <td className="p-2 border-b">{order.paymentMethod || "-"}</td>
-                    <td className="p-2 border-b">₱{Number(order.total).toFixed(2)}</td>
-
-                    <td className="p-2 border-b">
-                      {new Date(order.createdAt).toLocaleString()}
+              {salesData
+                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                .slice(0, 10)
+                .map((sale) => (
+                  <tr key={sale.id} className="hover:bg-[#F3EEEA]/50 border-[#B0A695]/10 border-b">
+                    <td className="px-4 py-3 font-medium text-[#776B5D]">{sale.orderId}</td>
+                    <td className="px-4 py-3 text-[#776B5D]">{sale.customerName}</td>
+                    <td className="px-4 py-3 text-[#776B5D]">
+                      <div className="flex flex-col">
+                        {sale.items.slice(0, 2).map((item, index) => (
+                          <span key={index} className="text-sm">
+                            {item.quantity}x {item.name}
+                          </span>
+                        ))}
+                        {sale.items.length > 2 && (
+                          <span className="text-[#776B5D]/70 text-sm">
+                            +{sale.items.length - 2} more
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="p-2 border-b">
-                      <button
-                        className="text-blue-600 hover:underline"
-                        onClick={() => toggleExpand(order.id)}
+                    <td className="px-4 py-3 font-medium text-[#776B5D]">{formatCurrency(sale.total)}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          sale.paymentMethod === 'cash' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                        }`}
                       >
-                        {expandedOrders.includes(order.id) ? "Collapse" : "Expand"}
-                      </button>
+                        {sale.paymentMethod === 'gcash' ? 'GCash' : 'Cash'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          sale.status === 'completed'
+                            ? 'bg-green-100 text-green-700'
+                            : sale.status === 'refunded'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}
+                      >
+                        {sale.status.charAt(0).toUpperCase() + sale.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-[#776B5D]/70 text-sm">
+                      {format(sale.timestamp, 'MMM dd, HH:mm')}
                     </td>
                   </tr>
-
-                  {expandedOrders.includes(order.id) && (
-                    <tr className="bg-gray-50">
-                      <td colSpan={7} className="p-2 border-b">
-                        <div className="pl-4">
-                          <h3 className="font-semibold mb-2">Order Items</h3>
-                          <table className="w-full border-collapse">
-                            <thead className="bg-gray-200">
-                              <tr>
-                                <th className="p-1 border">Menu Item</th>
-                                <th className="p-1 border">Size</th>
-                                <th className="p-1 border">Qty</th>
-                                <th className="p-1 border">Addons</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {order.orderitems.map((item) => (
-                                <tr key={item.id}>
-                                  <td className="p-1 border">{item.menu.name}</td>
-                                  <td className="p-1 border">{item.size?.label || "-"}</td>
-                                  <td className="p-1 border">{item.quantity}</td>
-                                  <td className="p-1 border">
-                                    {item.orderitemaddons.length > 0
-                                      ? item.orderitemaddons
-                                        .map((a) => `${a.menu.name} (₱${a.price})`)
-                                        .join(", ")
-                                      : "-"}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
-              {filteredOrders.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="p-2 text-center text-gray-500">
-                    No orders found.
-                  </td>
-                </tr>
-              )}
+                ))}
             </tbody>
           </table>
         </div>
       </div>
+    </div>
     </AdminLayout>
   );
-}
+};
+
+export default Sales;

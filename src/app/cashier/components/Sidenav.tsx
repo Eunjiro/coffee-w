@@ -30,11 +30,11 @@ export default function CashierSidenav({ open, setOpen }: { open: boolean; setOp
           </div>
 
           <nav className="flex flex-col p-4 space-y-2">
-            <Link href="/cashier" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]">
-              <LayoutDashboard /> Dashboard
-            </Link>
             <Link href="/cashier/pos" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]">
               <ShoppingCart /> POS
+            </Link>
+            <Link href="/cashier" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]">
+              <LayoutDashboard /> Dashboard
             </Link>
             <Link href="/cashier/orders" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]">
               <ClipboardList /> Orders
