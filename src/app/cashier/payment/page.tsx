@@ -8,6 +8,28 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 
+interface LoyaltyMember {
+    id: string;
+    name: string;
+    phone: string;
+    pointsAvailable: number;
+}
+
+interface Reward {
+    id: string;
+    name: string;
+    discount: number;
+}
+
+interface Addon {
+    id: number;
+    name: string;
+    type: "ADDON" | "ITEM";
+    basePrice: number;
+    sizes?: { label: string; price: number }[];
+}
+
+
 interface OrderItem {
     id: number;
     name: string;
@@ -38,10 +60,11 @@ interface PaymentData {
     rewardsDiscount: number;
     tax: number;
     total: number;
-    loyaltyMember?: any;
-    selectedRewards: any[];
+    loyaltyMember?: LoyaltyMember;
+    selectedRewards: Reward[];
     timestamp: Date;
 }
+
 
 const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: propOnBack, onPaymentComplete: propOnPaymentComplete }) => {
     const router = useRouter();
@@ -54,10 +77,10 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
     const [paymentMethod, setPaymentMethod] = useState<"cash" | "gcash">("cash");
     const [amountPaid, setAmountPaid] = useState("");
     const [loyaltySearch, setLoyaltySearch] = useState("");
-    const [selectedLoyaltyMember, setSelectedLoyaltyMember] = useState<any | null>(null);
-    const [loyaltySearchResults, setLoyaltySearchResults] = useState<any[]>([]);
-    const [selectedRewards, setSelectedRewards] = useState<any[]>([]);
-    const [addonData, setAddonData] = useState<any[]>([]);
+    const [selectedLoyaltyMember, setSelectedLoyaltyMember] = useState<LoyaltyMember | null>(null);
+    const [loyaltySearchResults, setLoyaltySearchResults] = useState<LoyaltyMember[]>([]);
+    const [selectedRewards, setSelectedRewards] = useState<Reward[]>([]);
+    const [addonData, setAddonData] = useState<Addon[]>([]);
 
     // Load cart data from sessionStorage on component mount
     useEffect(() => {
@@ -148,7 +171,7 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
         return selectedRewards.reduce((total, reward) => {
             return total + (reward.discount || 0);
         }, 0);
-    }, [selectedRewards, subtotal]);
+    }, [selectedRewards]);
 
     const tax = useMemo(() => (subtotal - rewardsDiscount) * 0.12, [subtotal, rewardsDiscount]);
     const total = useMemo(() => subtotal - rewardsDiscount + tax, [subtotal, rewardsDiscount, tax]);

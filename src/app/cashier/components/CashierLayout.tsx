@@ -16,6 +16,8 @@ export default function CashierLayout({ children }: CashierLayoutProps) {
   const [cartOpen, setCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
+  void cartOpen;
+
   const addToCart = (item: CartItem) => {
     setCartItems(prev => {
       const existing = prev.find(ci => ci.cartKey === item.cartKey);

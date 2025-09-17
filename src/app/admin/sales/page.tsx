@@ -74,22 +74,21 @@ const Sales: React.FC = () => {
     const fetchSalesData = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         const res = await fetch(`/api/admin/sales/orders?dateRange=${dateRange}&status=${selectedStatus}`);
-        const data = await res.json();
+        const data: unknown = await res.json();
 
         if (res.ok) {
-          // Check if data is an array
           if (Array.isArray(data)) {
-            setSalesData(data);
+            setSalesData(data as Sale[]);
           } else {
             console.error('Sales data is not an array:', data);
             setError('Invalid data format received from server');
             setSalesData([]);
           }
         } else {
-          setError(data.error || 'Failed to fetch sales data');
+          setError((data as { error?: string }).error || 'Failed to fetch sales data');
           setSalesData([]);
         }
       } catch (error) {
@@ -126,7 +125,7 @@ const Sales: React.FC = () => {
     // Top selling items
     const itemCounts = new Map<string, TopSellingItem>();
     completedSales.forEach((sale) => {
-      sale.items.forEach((item: SaleItem) => {
+      sale.items.forEach((item) => {
         const key = item.name;
         if (itemCounts.has(key)) {
           const existing = itemCounts.get(key)!;
@@ -202,13 +201,8 @@ const Sales: React.FC = () => {
   const formatCurrency = (amount: number) => `₱${amount.toLocaleString()}`;
   const formatNumber = (num: number) => num.toLocaleString();
 
-  const handleRefresh = () => {
-    window.location.reload();
-  };
-
-  const handleExport = () => {
-    console.log('Export functionality not yet implemented');
-  };
+  const handleRefresh = () => window.location.reload();
+  const handleExport = () => console.log('Export functionality not yet implemented');
 
   const actions = (
     <>
@@ -263,228 +257,242 @@ const Sales: React.FC = () => {
 
   return (
     <AdminLayout>
-    <div className="bg-[#F3EEEA] p-8 h-full overflow-y-auto custom-scrollbar">
-      <PageHeader title="Sales Analytics" description="View detailed sales reports and analytics" actions={actions} />
+      <div className="bg-[#F3EEEA] p-8 h-full overflow-y-auto custom-scrollbar">
+        <PageHeader title="Sales Analytics" description="View detailed sales reports and analytics" actions={actions} />
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <div className="flex gap-2">
-          {['all', 'today', 'week', 'month'].map((range) => (
-            <button
-              key={range}
-              onClick={() => setDateRange(range as any)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors capitalize ${
-                dateRange === range ? 'bg-[#776B5D] text-[#F3EEEA]' : 'bg-white text-[#776B5D] hover:bg-[#B0A695]/20'
-              }`}
-            >
-              {range}
-            </button>
+        {/* Filters */}
+        <div className="flex flex-wrap gap-4 mb-6">
+          <div className="flex gap-2">
+            {(['all', 'today', 'week', 'month'] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setDateRange(range)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors capitalize ${dateRange === range ? 'bg-[#776B5D] text-[#F3EEEA]' : 'bg-white text-[#776B5D] hover:bg-[#B0A695]/20'
+                  }`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Status filter */}
+        <select
+          className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
+          value={statusFilter}
+          onChange={(e) =>
+            setStatusFilter(
+              e.target.value as 'all' | 'completed' | 'refunded' | 'cancelled' | 'pending' | 'paid'
+            )
+          }
+        >
+          {(['all', 'completed', 'paid', 'pending', 'cancelled', 'refunded'] as const).map((s) => (
+            <option key={s} value={s}>
+              {s[0].toUpperCase() + s.slice(1)}
+            </option>
           ))}
-        </div>
-      </div>
+        </select>
 
-      {/* Key Metrics */}
-      <div className="gap-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        <div className="bg-white shadow-sm p-6 rounded-xl">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-medium text-[#776B5D]/70 text-sm">Total Sales</p>
-              <p className="font-bold text-[#776B5D] text-2xl">{formatCurrency(analytics.totalRevenue)}</p>
-            </div>
-            <div className="bg-green-100 p-3 rounded-full">
-              <DollarSign className="w-6 h-6 text-green-600" />
+        {/* Key Metrics */}
+        <div className="gap-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-8">
+          <div className="bg-white shadow-sm p-6 rounded-xl">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="font-medium text-[#776B5D]/70 text-sm">Total Sales</p>
+                <p className="font-bold text-[#776B5D] text-2xl">{formatCurrency(analytics.totalRevenue)}</p>
+              </div>
+              <div className="bg-green-100 p-3 rounded-full">
+                <DollarSign className="w-6 h-6 text-green-600" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white shadow-sm p-6 rounded-xl">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-medium text-[#776B5D]/70 text-sm">Total Orders</p>
-              <p className="font-bold text-[#776B5D] text-2xl">{formatNumber(analytics.totalOrders)}</p>
-            </div>
-            <div className="bg-blue-100 p-3 rounded-full">
-              <ShoppingCart className="w-6 h-6 text-blue-600" />
+          <div className="bg-white shadow-sm p-6 rounded-xl">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="font-medium text-[#776B5D]/70 text-sm">Total Orders</p>
+                <p className="font-bold text-[#776B5D] text-2xl">{formatNumber(analytics.totalOrders)}</p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-full">
+                <ShoppingCart className="w-6 h-6 text-blue-600" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white shadow-sm p-6 rounded-xl">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-medium text-[#776B5D]/70 text-sm">Best Seller</p>
-              <p className="font-bold text-[#776B5D] text-2xl">{analytics.topSellingItems[0]?.name || 'N/A'}</p>
+          <div className="bg-white shadow-sm p-6 rounded-xl">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="font-medium text-[#776B5D]/70 text-sm">Best Seller</p>
+                <p className="font-bold text-[#776B5D] text-2xl">{analytics.topSellingItems[0]?.name || 'N/A'}</p>
+              </div>
+              <div className="bg-purple-100 p-3 rounded-full">
+                <TrendingUp className="w-6 h-6 text-purple-600" />
+              </div>
             </div>
-            <div className="bg-purple-100 p-3 rounded-full">
-              <TrendingUp className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Section */}
-      <div className="gap-6 grid grid-cols-1 lg:grid-cols-2 mb-8">
-        <div className="bg-white shadow-sm p-6 rounded-xl">
-          <h3 className="mb-4 font-semibold text-[#776B5D] text-lg">Revenue by Day</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={analytics.revenueByDay}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#B0A695" />
-                <XAxis dataKey="date" stroke="#776B5D" />
-                <YAxis stroke="#776B5D" />
-                <Tooltip contentStyle={{ backgroundColor: '#F3EEEA', border: '1px solid #B0A695', borderRadius: '8px' }} />
-                <Area type="monotone" dataKey="revenue" stroke="#776B5D" fill="#776B5D" fillOpacity={0.3} />
-              </AreaChart>
-            </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="bg-white shadow-sm p-6 rounded-xl">
-          <h3 className="mb-4 font-semibold text-[#776B5D] text-lg">Top Selling Items</h3>
-          <div className="space-y-4">
-            {analytics.topSellingItems.length === 0 ? (
-              <div className="py-8 text-[#776B5D]/70 text-center">No sales data.</div>
-            ) : (
-              analytics.topSellingItems.map((item, index) => (
-                <div key={item.name} className="flex justify-between items-center">
-                  <div className="flex items-center">
-                    <div className="flex justify-center items-center bg-[#776B5D] mr-3 rounded-full w-8 h-8 font-bold text-white text-sm">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <p className="font-medium text-[#776B5D]">{item.name}</p>
-                      <p className="text-[#776B5D]/70 text-sm">{item.quantity} sold</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-[#776B5D]">{formatCurrency(item.revenue)}</p>
-                  </div>
-                </div>
-              ))
-            )}
+        {/* Charts Section */}
+        <div className="gap-6 grid grid-cols-1 lg:grid-cols-2 mb-8">
+          <div className="bg-white shadow-sm p-6 rounded-xl">
+            <h3 className="mb-4 font-semibold text-[#776B5D] text-lg">Revenue by Day</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={analytics.revenueByDay}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#B0A695" />
+                  <XAxis dataKey="date" stroke="#776B5D" />
+                  <YAxis stroke="#776B5D" />
+                  <Tooltip contentStyle={{ backgroundColor: '#F3EEEA', border: '1px solid #B0A695', borderRadius: '8px' }} />
+                  <Area type="monotone" dataKey="revenue" stroke="#776B5D" fill="#776B5D" fillOpacity={0.3} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Recent Sales Section */}
-      <div className="bg-white shadow-sm p-6 rounded-xl">
-        <div className="flex justify-between items-center mb-4 gap-4">
-          <h3 className="font-semibold text-[#776B5D] text-lg">Recent Sales</h3>
-          <div className="flex gap-2 items-center">
-            <select
-              className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-            >
-              {(['all','completed','paid','pending','cancelled','refunded'] as const).map(s => (
-                <option key={s} value={s}>{s[0].toUpperCase()+s.slice(1)}</option>
-              ))}
-            </select>
-            <input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search order, cashier, items, payment"
-              className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
-            />
-          </div>
-        </div>
-        {salesData.length === 0 ? (
-          <div className="py-8 text-[#776B5D]/70 text-center">
-            No sales data available for the selected period.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-[#B0A695]/20 border-b">
-                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Order ID</th>
-                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Cashier</th>
-                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Items</th>
-                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Total</th>
-                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Payment</th>
-                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Status</th>
-                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {salesData
-                  .sort((a, b) => {
-                    const dateA = new Date(a.timestamp);
-                    const dateB = new Date(b.timestamp);
-                    return dateB.getTime() - dateA.getTime();
-                  })
-                  .filter((sale) => {
-                    if (statusFilter !== 'all' && sale.status !== statusFilter) return false;
-                    if (!searchTerm.trim()) return true;
-                    const q = searchTerm.toLowerCase();
-                    const idMatch = sale.orderId.toLowerCase().includes(q);
-                    const cashierMatch = (sale.customerName || '').toLowerCase().includes(q);
-                    const payMatch = sale.paymentMethod.toLowerCase().includes(q);
-                    const itemsMatch = sale.items.some(i => i.name.toLowerCase().includes(q));
-                    return idMatch || cashierMatch || payMatch || itemsMatch;
-                  })
-                  .slice(0, 10)
-                  .map((sale) => (
-                  <tr key={sale.id} className="hover:bg-[#F3EEEA]/50 border-[#B0A695]/10 border-b">
-                    <td className="px-4 py-3 font-medium text-[#776B5D]">{sale.orderId}</td>
-                    <td className="px-4 py-3 text-[#776B5D]">{sale.customerName}</td>
-                    <td className="px-4 py-3 text-[#776B5D]">
-                      <div className="flex flex-col">
-                        {sale.items.slice(0, 2).map((item, index) => (
-                          <span key={index} className="text-sm">
-                            {item.quantity}x {item.name}
-                          </span>
-                        ))}
-                        {sale.items.length > 2 && (
-                          <span className="text-[#776B5D]/70 text-sm">
-                            +{sale.items.length - 2} more
-                          </span>
-                        )}
+          <div className="bg-white shadow-sm p-6 rounded-xl">
+            <h3 className="mb-4 font-semibold text-[#776B5D] text-lg">Top Selling Items</h3>
+            <div className="space-y-4">
+              {analytics.topSellingItems.length === 0 ? (
+                <div className="py-8 text-[#776B5D]/70 text-center">No sales data.</div>
+              ) : (
+                analytics.topSellingItems.map((item, index) => (
+                  <div key={item.name} className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <div className="flex justify-center items-center bg-[#776B5D] mr-3 rounded-full w-8 h-8 font-bold text-white text-sm">
+                        {index + 1}
                       </div>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-[#776B5D]">{formatCurrency(sale.total)}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          sale.paymentMethod === 'cash' ? 'bg-green-100 text-green-700' : 
-                          sale.paymentMethod === 'card' ? 'bg-purple-100 text-purple-700' :
-                          sale.paymentMethod === 'gcash' ? 'bg-blue-100 text-blue-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {sale.paymentMethod === 'gcash' ? 'GCash' : 
-                         sale.paymentMethod === 'card' ? 'Card' :
-                         sale.paymentMethod === 'other' ? 'Other' : 'Cash'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          sale.status === 'completed'
-                            ? 'bg-green-100 text-green-700'
-                            : sale.status === 'paid'
-                            ? 'bg-blue-100 text-blue-700'
-                            : sale.status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : sale.status === 'refunded'
-                            ? 'bg-orange-100 text-orange-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}
-                      >
-                        {sale.status.charAt(0).toUpperCase() + sale.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-[#776B5D]/70 text-sm">
-                      {format(new Date(sale.timestamp), 'MMM dd, HH:mm')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <div>
+                        <p className="font-medium text-[#776B5D]">{item.name}</p>
+                        <p className="text-[#776B5D]/70 text-sm">{item.quantity} sold</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-[#776B5D]">{formatCurrency(item.revenue)}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* Recent Sales Section */}
+        <div className="bg-white shadow-sm p-6 rounded-xl">
+          <div className="flex justify-between items-center mb-4 gap-4">
+            <h3 className="font-semibold text-[#776B5D] text-lg">Recent Sales</h3>
+            <div className="flex gap-2 items-center">
+              <select
+                className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+              >
+                {(['all', 'completed', 'paid', 'pending', 'cancelled', 'refunded'] as const).map(s => (
+                  <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>
+                ))}
+              </select>
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search order, cashier, items, payment"
+                className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
+              />
+            </div>
+          </div>
+          {salesData.length === 0 ? (
+            <div className="py-8 text-[#776B5D]/70 text-center">
+              No sales data available for the selected period.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-[#B0A695]/20 border-b">
+                    <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Order ID</th>
+                    <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Cashier</th>
+                    <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Items</th>
+                    <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Total</th>
+                    <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Payment</th>
+                    <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Status</th>
+                    <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {salesData
+                    .sort((a, b) => {
+                      const dateA = new Date(a.timestamp);
+                      const dateB = new Date(b.timestamp);
+                      return dateB.getTime() - dateA.getTime();
+                    })
+                    .filter((sale) => {
+                      if (statusFilter !== 'all' && sale.status !== statusFilter) return false;
+                      if (!searchTerm.trim()) return true;
+                      const q = searchTerm.toLowerCase();
+                      const idMatch = sale.orderId.toLowerCase().includes(q);
+                      const cashierMatch = (sale.customerName || '').toLowerCase().includes(q);
+                      const payMatch = sale.paymentMethod.toLowerCase().includes(q);
+                      const itemsMatch = sale.items.some(i => i.name.toLowerCase().includes(q));
+                      return idMatch || cashierMatch || payMatch || itemsMatch;
+                    })
+                    .slice(0, 10)
+                    .map((sale) => (
+                      <tr key={sale.id} className="hover:bg-[#F3EEEA]/50 border-[#B0A695]/10 border-b">
+                        <td className="px-4 py-3 font-medium text-[#776B5D]">{sale.orderId}</td>
+                        <td className="px-4 py-3 text-[#776B5D]">{sale.customerName}</td>
+                        <td className="px-4 py-3 text-[#776B5D]">
+                          <div className="flex flex-col">
+                            {sale.items.slice(0, 2).map((item, index) => (
+                              <span key={index} className="text-sm">
+                                {item.quantity}x {item.name}
+                              </span>
+                            ))}
+                            {sale.items.length > 2 && (
+                              <span className="text-[#776B5D]/70 text-sm">
+                                +{sale.items.length - 2} more
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-medium text-[#776B5D]">{formatCurrency(sale.total)}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${sale.paymentMethod === 'cash' ? 'bg-green-100 text-green-700' :
+                                sale.paymentMethod === 'card' ? 'bg-purple-100 text-purple-700' :
+                                  sale.paymentMethod === 'gcash' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-gray-100 text-gray-700'
+                              }`}
+                          >
+                            {sale.paymentMethod === 'gcash' ? 'GCash' :
+                              sale.paymentMethod === 'card' ? 'Card' :
+                                sale.paymentMethod === 'other' ? 'Other' : 'Cash'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${sale.status === 'completed'
+                                ? 'bg-green-100 text-green-700'
+                                : sale.status === 'paid'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : sale.status === 'pending'
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : sale.status === 'refunded'
+                                      ? 'bg-orange-100 text-orange-700'
+                                      : 'bg-red-100 text-red-700'
+                              }`}
+                          >
+                            {sale.status.charAt(0).toUpperCase() + sale.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-[#776B5D]/70 text-sm">
+                          {format(new Date(sale.timestamp), 'MMM dd, HH:mm')}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     </AdminLayout>
   );
 };

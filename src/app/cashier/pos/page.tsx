@@ -9,6 +9,8 @@ import { MenuItem, CartItem } from "@/types/types";
 import { Star, ShoppingCart, Trash2, CreditCard, Clipboard } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import SearchAndFilters from "@/components/ui/SearchAndFilters";
+import Image from "next/image";
+
 
 const categories = [
   { label: "All Items", value: "all", icon: Clipboard },
@@ -114,8 +116,8 @@ export default function PosPage() {
                 >
                   <button
                     className={`flex items-center gap-2 px-4 py-2 rounded-md transition w-full h-full ${activeFilter === c.value
-                        ? "bg-[#776B5D] text-[#F3EEEA]"
-                        : "bg-transparent text-[#776B5D]"
+                      ? "bg-[#776B5D] text-[#F3EEEA]"
+                      : "bg-transparent text-[#776B5D]"
                       }`}
                     onClick={() => setActiveFilter(c.value)}
                   >
@@ -163,11 +165,16 @@ export default function PosPage() {
                       className="flex flex-col bg-white p-4 border rounded-xl transition cursor-pointer hover:shadow-xl border-[#B0A695] hover:border-[#776B5D]"
                       onClick={() => setSelectedItem(item)}
                     >
-                      <img
-                        src={item.image || "/placeholder.svg"}
-                        alt={item.name}
-                        className="mb-3 rounded-lg w-full object-cover aspect-square"
-                      />
+                      <div className="relative w-full h-36 mb-2 rounded-lg overflow-hidden">
+                        <Image
+                          src={item.image || "/placeholder.svg"}
+                          alt={item.name}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 1024px) 100vw, 25vw"
+                          priority
+                        />
+                      </div>
                       <div className="font-bold text-[#776B5D] text-lg truncate">
                         {item.name}
                       </div>
@@ -207,11 +214,15 @@ export default function PosPage() {
                     key={item.cartKey}
                     className="flex bg-[#F3EEEA] mb-3 p-4 border border-[#B0A695] rounded-2xl w-full h-fit"
                   >
-                    <img
-                      src={item.image || "/placeholder.svg"}
-                      alt={item.name}
-                      className="flex-shrink-0 mr-4 rounded-lg w-16 h-16 object-cover"
-                    />
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden">
+                      <Image
+                        src={item.image || "/placeholder.svg"}
+                        alt={item.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-[#776B5D] text-lg truncate">
                         {item.name}
@@ -267,7 +278,7 @@ export default function PosPage() {
           {selectedItem && (
             <MenuModal
               item={selectedItem}
-              open={!!selectedItem}
+              open={true}
               onClose={() => setSelectedItem(null)}
               onAddToOrder={addToCart}
             />

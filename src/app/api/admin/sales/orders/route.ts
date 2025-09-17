@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma, orders_status } from "@prisma/client";
 
 export async function GET(request: Request) {
   const searchParams = new URL(request.url).searchParams;
-  const dateRange = searchParams.get('dateRange') || 'week';
-  const status = searchParams.get('status') || 'completed';
+  const dateRange = searchParams.get("dateRange") || "week";
+  const status = searchParams.get("status") || "completed";
 
   try {
     // Calculate date range
@@ -12,31 +13,34 @@ export async function GET(request: Request) {
     let startDate: Date;
 
     switch (dateRange) {
-      case 'today':
+      case "today":
         startDate = new Date(now);
         startDate.setHours(0, 0, 0, 0);
         break;
-      case 'week':
+      case "week":
         startDate = new Date(now);
         startDate.setDate(now.getDate() - 7);
         break;
-      case 'month':
+      case "month":
         startDate = new Date(now);
         startDate.setMonth(now.getMonth() - 1);
         break;
-      case 'all':
+      case "all":
       default:
-        startDate = new Date(0); // All time
+        startDate = new Date(0);
         break;
     }
 
     // Determine status filter
-    let statusFilter: any = {};
-    if (status !== 'all') {
-      if (status === 'completed') {
-        statusFilter = { status: { in: ['PAID', 'COMPLETED'] } };
+    let statusFilter: Prisma.ordersWhereInput = {};
+    if (status !== "all") {
+      if (status === "completed") {
+        statusFilter = { status: { in: [orders_status.PAID, orders_status.COMPLETED] } };
       } else {
-        statusFilter = { status: status.toUpperCase() };
+        const upperStatus = status.toUpperCase() as keyof typeof orders_status;
+        if (upperStatus in orders_status) {
+          statusFilter = { status: orders_status[upperStatus] };
+        }
       }
     }
 
@@ -66,18 +70,19 @@ export async function GET(request: Request) {
       },
     });
 
-    // Transform the data to match the expected format
-    const transformedOrders = orders.map(order => ({
+    const transformedOrders = orders.map((order) => ({
       id: order.id.toString(),
       orderId: `#${order.id}`,
       customerName: order.users.name,
-      items: order.orderitems.map(item => ({
+      items: order.orderitems.map((item) => ({
         name: item.menu.name,
         quantity: item.quantity,
-        unitPrice: Number(item.sizes?.price || 0) + item.orderitemaddons.reduce((sum, addon) => sum + Number(addon.price), 0),
+        unitPrice:
+          Number(item.sizes?.price || 0) +
+          item.orderitemaddons.reduce((sum, addon) => sum + Number(addon.price), 0),
       })),
       total: Number(order.total),
-      paymentMethod: order.paymentMethod?.toLowerCase() || 'cash',
+      paymentMethod: order.paymentMethod?.toLowerCase() || "cash",
       status: order.status.toLowerCase(),
       timestamp: new Date(order.createdAt),
     }));

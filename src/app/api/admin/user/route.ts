@@ -35,6 +35,7 @@ export async function GET() {
 
     return NextResponse.json(mapped);
   } catch (error) {
+    console.error("Failed to fetch users:", error);
     return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
   }
 }
@@ -79,6 +80,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(mapped, { status: 201 });
   } catch (error) {
+    console.error("Failed to create user:", error);
     return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
   }
 }

@@ -1,88 +1,107 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Mail, Phone, Calendar, Shield } from 'lucide-react';
 const userRoles = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'cashier', label: 'Cashier' },
+	{ value: 'admin', label: 'Admin' },
+	{ value: 'cashier', label: 'Cashier' },
 ];
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import FormField, { Input, Select } from '../ui/FormField';
 
-type EditingUser = {
-  id: number;
-  email: string;
-  username?: string;
-  name: string;
-  role: 'admin' | 'cashier';
-  status: 'active' | 'inactive';
-  phone?: string;
-  hireDate: string;
+type UserPayload = {
+	email: string;
+	username: string;
+	password?: string;
+	name: string;
+	role: 'admin' | 'cashier';
+	status: 'active' | 'inactive';
+	phone?: string;
+	hireDate?: string;
 };
 
 interface UserModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    // Payload matches API fields expected by /api/admin/user
-    onSave: (user: {
-      email: string;
-      username: string;
-      password?: string;
-      name: string;
-      role: 'admin' | 'cashier';
-      status: 'active' | 'inactive';
-      phone?: string;
-      hireDate?: string;
-    }) => void;
-    editingUser?: EditingUser | null;
+	isOpen: boolean;
+	onClose: () => void;
+	onSave: (user: UserPayload) => void;
+	editingUser?: EditingUser | null;
+}
+
+
+type EditingUser = {
+	id: number;
+	email: string;
+	username?: string;
+	name: string;
+	role: 'admin' | 'cashier';
+	status: 'active' | 'inactive';
+	phone?: string;
+	hireDate: string;
+};
+
+interface UserModalProps {
+	isOpen: boolean;
+	onClose: () => void;
+	// Payload matches API fields expected by /api/admin/user
+	onSave: (user: {
+		email: string;
+		username: string;
+		password?: string;
+		name: string;
+		role: 'admin' | 'cashier';
+		status: 'active' | 'inactive';
+		phone?: string;
+		hireDate?: string;
+	}) => void;
+	editingUser?: EditingUser | null;
 }
 
 const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, editingUser }) => {
-    const [formData, setFormData] = useState({
-        username: '',
-        firstName: '',
-        lastName: '',
-        email: '',
-        role: 'cashier' as 'admin' | 'cashier',
-        status: 'active' as 'active' | 'inactive',
-        phone: '',
-        hireDate: new Date().toISOString().split('T')[0],
-        password: '',
-    });
+	const [formData, setFormData] = useState({
+		username: '',
+		firstName: '',
+		lastName: '',
+		email: '',
+		role: 'cashier' as 'admin' | 'cashier',
+		status: 'active' as 'active' | 'inactive',
+		phone: '',
+		hireDate: new Date().toISOString().split('T')[0],
+		password: '',
+	});
 
-    const [errors, setErrors] = useState<Record<string, string>>({});
-    const formRef = useRef<HTMLFormElement | null>(null);
+	const [errors, setErrors] = useState<Record<string, string>>({});
+	const formRef = useRef<HTMLFormElement | null>(null);
 
-    useEffect(() => {
-        if (editingUser) {
-            // Split name into first/last heuristically
-            const [firstName = '', ...rest] = (editingUser.name || '').split(' ');
-            const lastName = rest.join(' ');
-            setFormData({
-                username: editingUser.username || '',
-                firstName,
-                lastName,
-                email: editingUser.email,
-                role: editingUser.role,
-                status: editingUser.status,
-                phone: editingUser.phone || '',
-                hireDate: (editingUser.hireDate || new Date().toISOString()).split('T')[0],
-                password: '',
-            });
-        } else {
-            setFormData({
-                username: '',
-                firstName: '',
-                lastName: '',
-                email: '',
-                role: 'cashier',
-                status: 'active',
-                phone: '',
-                hireDate: new Date().toISOString().split('T')[0],
-                password: '',
-            });
-        }
-        setErrors({});
-    }, [editingUser, isOpen]);
+	useEffect(() => {
+		if (editingUser) {
+			// Split name into first/last heuristically
+			const [firstName = '', ...rest] = (editingUser.name || '').split(' ');
+			const lastName = rest.join(' ');
+			setFormData({
+				username: editingUser.username || '',
+				firstName,
+				lastName,
+				email: editingUser.email,
+				role: editingUser.role,
+				status: editingUser.status,
+				phone: editingUser.phone || '',
+				hireDate: (editingUser.hireDate || new Date().toISOString()).split('T')[0],
+				password: '',
+			});
+		} else {
+			setFormData({
+				username: '',
+				firstName: '',
+				lastName: '',
+				email: '',
+				role: 'cashier',
+				status: 'active',
+				phone: '',
+				hireDate: new Date().toISOString().split('T')[0],
+				password: '',
+			});
+		}
+		setErrors({});
+	}, [editingUser, isOpen]);
 
 	const validateForm = () => {
 		const newErrors: Record<string, string> = {};
@@ -105,9 +124,9 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, editingU
 			newErrors.email = 'Email is invalid';
 		}
 
-        if (!formData.hireDate) {
-            newErrors.hireDate = 'Hire date is required';
-        }
+		if (!formData.hireDate) {
+			newErrors.hireDate = 'Hire date is required';
+		}
 
 		setErrors(newErrors);
 		return Object.keys(newErrors).length === 0;
@@ -115,25 +134,26 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, editingU
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		
+
 		if (!validateForm()) {
 			return;
 		}
 
-        const userData = {
-            email: formData.email,
-            username: formData.username,
-            password: formData.password || undefined,
-            name: [formData.firstName, formData.lastName].filter(Boolean).join(' ').trim(),
-            role: formData.role,
-            status: formData.status,
-            phone: formData.phone || undefined,
-            hireDate: formData.hireDate || undefined,
-        } as const;
+		const userData: UserPayload = {
+			email: formData.email,
+			username: formData.username,
+			password: formData.password || undefined,
+			name: [formData.firstName, formData.lastName].filter(Boolean).join(' ').trim(),
+			role: formData.role,
+			status: formData.status,
+			phone: formData.phone || undefined,
+			hireDate: formData.hireDate || undefined,
+		};
 
-        onSave(userData as any);
+		onSave(userData);
 		onClose();
 	};
+
 
 	const handleInputChange = (field: string, value: string) => {
 		setFormData(prev => ({ ...prev, [field]: value }));
@@ -147,7 +167,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, editingU
 			<Button variant="secondary" onClick={onClose}>
 				Cancel
 			</Button>
-            <Button type="button" onClick={() => formRef.current?.requestSubmit()}>
+			<Button type="button" onClick={() => formRef.current?.requestSubmit()}>
 				{editingUser ? 'Update User' : 'Add User'}
 			</Button>
 		</>
@@ -161,7 +181,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, editingU
 			size="md"
 			footer={footer}
 		>
-            <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+			<form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
 				<FormField label="Username" required error={errors.username}>
 					<Input
 						type="text"
@@ -197,7 +217,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, editingU
 					</FormField>
 				</div>
 
-                <FormField label="Email" required error={errors.email}>
+				<FormField label="Email" required error={errors.email}>
 					<Input
 						type="email"
 						value={formData.email}
@@ -208,16 +228,16 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, editingU
 					/>
 				</FormField>
 
-                {!editingUser && (
-                    <FormField label="Password">
-                        <Input
-                            type="password"
-                            value={formData.password}
-                            onChange={(e) => handleInputChange('password', e.target.value)}
-                            placeholder="Temporary password (optional)"
-                        />
-                    </FormField>
-                )}
+				{!editingUser && (
+					<FormField label="Password">
+						<Input
+							type="password"
+							value={formData.password}
+							onChange={(e) => handleInputChange('password', e.target.value)}
+							placeholder="Temporary password (optional)"
+						/>
+					</FormField>
+				)}
 
 				<FormField label="Phone Number">
 					<Input

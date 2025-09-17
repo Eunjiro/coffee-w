@@ -15,6 +15,22 @@ import {
 import AddInventoryModal from "../components/modals/AddInventoryModal";
 import { Button } from "@/components/ui/button";
 
+
+declare global {
+  interface Window {
+    toast?: {
+      error?: (msg: string) => void;
+      success?: (msg: string) => void;
+    };
+  }
+}
+
+interface Category {
+  label: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string; color?: string }>;
+}
+
 interface Ingredient {
   id: number;
   name: string;
@@ -59,9 +75,9 @@ const currency = (v: number | null | undefined) =>
   v == null
     ? "—"
     : `₱${v.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`;
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 
 function inferCategory(unitName?: string | null, itemName?: string) {
   const u = (unitName || "").toLowerCase();
@@ -80,6 +96,9 @@ export default function InventoryPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
+
+  void suppliers;
+  void units;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -128,7 +147,7 @@ export default function InventoryPage() {
       await fetchData();
     } catch (err) {
       console.error(err);
-      (window as any).toast?.error?.("Failed to add supplier");
+      window.toast?.error?.("Failed to add supplier");
     }
   };
 
@@ -201,7 +220,7 @@ export default function InventoryPage() {
     return { status: "good", color: "text-[#776B5D]" };
   };
 
-  const categories = [
+  const categories: Category[] = [
     { label: "All Items", value: "all", icon: Package },
     { label: "Disposable", value: "disposable", icon: Package },
     { label: "Dairy", value: "liquid", icon: Package },
@@ -395,11 +414,10 @@ export default function InventoryPage() {
             <div key={category.value} className="flex justify-center items-center bg-white p-2 rounded-xl">
               <button
                 onClick={() => setFilterCategory(category.value)}
-                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md font-normal transition-colors duration-150 w-full h-full ${
-                  filterCategory === category.value
-                    ? "bg-[#776B5D] text-[#F3EEEA]"
-                    : "bg-transparent text-[#776B5D]"
-                }`}
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md font-normal transition-colors duration-150 w-full h-full ${filterCategory === category.value
+                  ? "bg-[#776B5D] text-[#F3EEEA]"
+                  : "bg-transparent text-[#776B5D]"
+                  }`}
               >
                 {/* @ts-ignore */}
                 {category.icon && (

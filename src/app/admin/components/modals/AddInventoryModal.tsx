@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { Package, User, Hash, AlertTriangle, PhilippinePeso } from 'lucide-react';
 import Modal from '../ui/Modal';
@@ -33,8 +35,33 @@ interface Supplier {
 }
 
 interface Unit {
-  id: number;
+  id: string | number;
   name: string;
+}
+
+interface FormData {
+  name: string;
+  category: string;
+  supplierId: string;
+  unitId: string;
+  qtyPerPack: string;
+  stock: string;
+  packagePrice: string;
+  threshold: string;
+  description: string;
+}
+
+interface IngredientPayload {
+  id?: number;
+  name: string;
+  category: string;
+  supplierId: number | null;
+  unitId: number | null;
+  packagePrice: number | null;
+  qtyPerPack: number | null;
+  stock: number;
+  threshold: number;
+  description: string | null;
 }
 
 const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
@@ -43,8 +70,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
   onSave,
   editingItem,
 }) => {
-  console.log('AddInventoryModal rendered with:', { isOpen, editingItem });
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     category: 'solid',
     supplierId: '',
@@ -60,12 +86,11 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(false);
-  const [supplierName, setSupplierName] = useState("");
-  const [newUnitName, setNewUnitName] = useState("");
+  const [supplierName, setSupplierName] = useState('');
+  const [newUnitName, setNewUnitName] = useState('');
 
   const categories = ['liquid', 'solid', 'powder', 'syrup', 'disposable', 'dairy', 'other'];
 
-  // load suppliers and units when modal opens
   useEffect(() => {
     if (isOpen) {
       const loadData = async () => {
@@ -74,7 +99,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
             fetch('/api/admin/inventory/suppliers'),
             fetch('/api/admin/inventory/units'),
           ]);
-          const [suppliersData, unitsData] = await Promise.all([
+          const [suppliersData, unitsData]: [Supplier[], Unit[]] = await Promise.all([
             suppliersRes.json(),
             unitsRes.json(),
           ]);
@@ -100,12 +125,14 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
         body: JSON.stringify({ name: trimmed }),
       });
       if (!res.ok) throw new Error('Failed to add supplier');
-      const created = await res.json();
+      const created: Supplier = await res.json();
       setSuppliers(prev => [...prev, created]);
       return created.id;
     } catch (e) {
       console.error(e);
-      (window as any).toast?.error?.('Failed to add supplier');
+      (window as typeof window & { toast?: { error?: (msg: string) => void } }).toast?.error?.(
+        'Failed to add supplier'
+      );
       return formData.supplierId ? Number(formData.supplierId) : null;
     }
   };
@@ -120,13 +147,15 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
         body: JSON.stringify({ name }),
       });
       if (!res.ok) throw new Error('Failed to add unit');
-      const created = await res.json();
+      const created: Unit = await res.json();
       setUnits(prev => [...prev, created]);
       setFormData(prev => ({ ...prev, unitId: String(created.id) }));
-      setNewUnitName("");
+      setNewUnitName('');
     } catch (e) {
       console.error(e);
-      (window as any).toast?.error?.('Failed to add unit');
+      (window as typeof window & { toast?: { error?: (msg: string) => void } }).toast?.error?.(
+        'Failed to add unit'
+      );
     }
   };
 
@@ -143,9 +172,8 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
         threshold: editingItem.threshold.toString(),
         description: '',
       });
-      // prefill supplierName from list if available
       const s = suppliers.find(s => s.id === (editingItem.supplierId ?? -1));
-      setSupplierName(s?.name || "");
+      setSupplierName(s?.name || '');
     } else {
       setFormData({
         name: '',
@@ -158,74 +186,47 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
         threshold: '0',
         description: '',
       });
-      setSupplierName("");
-      setNewUnitName("");
+      setSupplierName('');
+      setNewUnitName('');
     }
     setErrors({});
   }, [editingItem, isOpen, suppliers]);
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    console.log('Validating form data:', formData);
-
-    if (!formData.name.trim()) {
-      newErrors.name = 'Product name is required';
+  const handleInputChange = (field: keyof FormData, value: string | boolean) => {
+    setFormData(prev => ({ ...prev, [field]: value as string }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
-
-    if (!formData.category) {
-      newErrors.category = 'Category is required';
-    }
-
-    if (!formData.stock.trim()) {
-      newErrors.stock = 'Current stock is required';
-    } else if (isNaN(Number(formData.stock)) || Number(formData.stock) < 0) {
-      newErrors.stock = 'Current stock must be a valid number';
-    }
-
-    if (!formData.threshold.trim()) {
-      newErrors.threshold = 'Reorder level is required';
-    } else if (isNaN(Number(formData.threshold)) || Number(formData.threshold) < 0) {
-      newErrors.threshold = 'Reorder level must be a valid number';
-    }
-
-    // optional fields validation shit
-    if (formData.packagePrice && (isNaN(Number(formData.packagePrice)) || Number(formData.packagePrice) < 0)) {
-      newErrors.packagePrice = 'Package price must be a valid number';
-    }
-
-    if (formData.qtyPerPack && (isNaN(Number(formData.qtyPerPack)) || Number(formData.qtyPerPack) < 0)) {
-      newErrors.qtyPerPack = 'Quantity per pack must be a valid number';
-    }
-
-    console.log('Validation errors:', newErrors);
-    setErrors(newErrors);
-    const isValid = Object.keys(newErrors).length === 0;
-    console.log('Form is valid:', isValid);
-    return isValid;
   };
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: '' }));
-    }
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    if (!formData.name.trim()) newErrors.name = 'Product name is required';
+    if (!formData.category) newErrors.category = 'Category is required';
+    if (!formData.stock.trim()) newErrors.stock = 'Current stock is required';
+    else if (isNaN(Number(formData.stock)) || Number(formData.stock) < 0)
+      newErrors.stock = 'Current stock must be a valid number';
+    if (!formData.threshold.trim()) newErrors.threshold = 'Reorder level is required';
+    else if (isNaN(Number(formData.threshold)) || Number(formData.threshold) < 0)
+      newErrors.threshold = 'Reorder level must be a valid number';
+    if (formData.packagePrice && (isNaN(Number(formData.packagePrice)) || Number(formData.packagePrice) < 0))
+      newErrors.packagePrice = 'Package price must be a valid number';
+    if (formData.qtyPerPack && (isNaN(Number(formData.qtyPerPack)) || Number(formData.qtyPerPack) < 0))
+      newErrors.qtyPerPack = 'Quantity per pack must be a valid number';
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted with data:', formData);
-
-    if (!validateForm()) {
-      console.log('Form validation failed');
-      return;
-    }
-    
-    console.log('Form validation passed, proceeding with API call');
+    if (!validateForm()) return;
 
     setLoading(true);
     try {
       const supplierIdResolved = await ensureSupplierId();
-      const payload: any = {
+      const payload: IngredientPayload = {
+        id: editingItem?.id,
         name: formData.name,
         category: formData.category,
         supplierId: supplierIdResolved,
@@ -237,57 +238,40 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
         description: formData.description || null,
       };
 
-      const url = editingItem 
-        ? '/api/admin/inventory/ingredients' 
-        : '/api/admin/inventory/ingredients';
+      const url = '/api/admin/inventory/ingredients';
       const method = editingItem ? 'PUT' : 'POST';
-
-      if (editingItem) {
-        payload.id = editingItem.id;
-      }
-
-      console.log('Sending payload to API:', payload);
-      
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
-      console.log('API response status:', response.status);
-      
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('API error:', errorData);
         throw new Error(errorData.error || 'Failed to save ingredient');
       }
 
-      const result = await response.json();
-      console.log('API success:', result);
-      
+      await response.json();
       onSave();
       onClose();
     } catch (error) {
       console.error('Error saving ingredient:', error);
-      (window as any).toast?.error?.(`Error: ${error instanceof Error ? (error as any).message : 'Failed to save ingredient'}`);
+      (window as typeof window & { toast?: { error?: (msg: string) => void } }).toast?.error?.(
+        `Error: ${error instanceof Error ? error.message : 'Failed to save ingredient'}`
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const footer = undefined;
+  if (!isOpen) return null;
 
-  console.log('Modal render - isOpen:', isOpen);
-  
-  if (!isOpen) {
-    console.log('Modal not open, returning null');
-    return null;
-  }
-  
-  console.log('Modal is open, rendering...');
-  
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={editingItem ? 'Edit Inventory' : 'Add Inventory'} size="xl" footer={footer}>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editingItem ? 'Edit Inventory' : 'Add Inventory'}
+      size="xl"
+    >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
@@ -295,7 +279,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
               <Input
                 type="text"
                 value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
+                onChange={e => handleInputChange('name', e.target.value)}
                 placeholder="Product Name..."
                 icon={Package}
                 error={!!errors.name}
@@ -305,8 +289,11 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
             <FormField label="Category" required error={errors.category}>
               <Select
                 value={formData.category}
-                onChange={(e) => handleInputChange('category', e.target.value)}
-                options={categories.map((cat) => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1) }))}
+                onChange={e => handleInputChange('category', e.target.value)}
+                options={categories.map(cat => ({
+                  value: cat,
+                  label: cat.charAt(0).toUpperCase() + cat.slice(1),
+                }))}
                 placeholder="Select Category"
                 icon={Package}
                 error={!!errors.category}
@@ -317,7 +304,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
               <Input
                 type="text"
                 value={supplierName}
-                onChange={(e) => setSupplierName(e.target.value)}
+                onChange={e => setSupplierName(e.target.value)}
                 placeholder="Type supplier name"
                 icon={User}
               />
@@ -328,10 +315,10 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
                 <div className="col-span-1">
                   <Select
                     value={formData.unitId}
-                    onChange={(e) => handleInputChange('unitId', e.target.value)}
+                    onChange={e => handleInputChange('unitId', e.target.value)}
                     options={[
                       { value: '', label: 'Select Unit (Optional)' },
-                      ...units.map((unit) => ({ value: unit.id.toString(), label: unit.name }))
+                      ...units.map(unit => ({ value: unit.id.toString(), label: unit.name })),
                     ]}
                     placeholder="Select Unit"
                     icon={Hash}
@@ -342,10 +329,12 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
                   <Input
                     type="text"
                     value={newUnitName}
-                    onChange={(e) => setNewUnitName(e.target.value)}
+                    onChange={e => setNewUnitName(e.target.value)}
                     placeholder="New Unit"
                   />
-                  <Button type="button" onClick={quickAddUnit}>Add</Button>
+                  <Button type="button" onClick={quickAddUnit}>
+                    Add
+                  </Button>
                 </div>
               </div>
             </FormField>
@@ -356,7 +345,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
               <Input
                 type="number"
                 value={formData.stock}
-                onChange={(e) => handleInputChange('stock', e.target.value)}
+                onChange={e => handleInputChange('stock', e.target.value)}
                 placeholder="Current Stock..."
                 icon={Hash}
                 error={!!errors.stock}
@@ -367,7 +356,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
               <Input
                 type="number"
                 value={formData.threshold}
-                onChange={(e) => handleInputChange('threshold', e.target.value)}
+                onChange={e => handleInputChange('threshold', e.target.value)}
                 placeholder="Low Stock Alert..."
                 icon={AlertTriangle}
                 error={!!errors.threshold}
@@ -378,7 +367,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
               <Input
                 type="number"
                 value={formData.packagePrice}
-                onChange={(e) => handleInputChange('packagePrice', e.target.value)}
+                onChange={e => handleInputChange('packagePrice', e.target.value)}
                 placeholder="ex: 50 (optional)"
                 icon={PhilippinePeso}
                 error={!!errors.packagePrice}
@@ -389,7 +378,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
               <Input
                 type="number"
                 value={formData.qtyPerPack}
-                onChange={(e) => handleInputChange('qtyPerPack', e.target.value)}
+                onChange={e => handleInputChange('qtyPerPack', e.target.value)}
                 placeholder="ex: 500 (optional)"
                 icon={Hash}
                 error={!!errors.qtyPerPack}
@@ -401,7 +390,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
         <FormField label="Description">
           <Textarea
             value={formData.description}
-            onChange={(e) => handleInputChange('description', (e as React.ChangeEvent<HTMLTextAreaElement>).target.value)}
+            onChange={e => handleInputChange('description', e.target.value)}
             placeholder="Optional notes or description about the ingredient"
           />
         </FormField>
@@ -411,7 +400,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
             Close
           </Button>
           <Button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : (editingItem ? 'Update Inventory' : 'Add Inventory')}
+            {loading ? 'Saving...' : editingItem ? 'Update Inventory' : 'Add Inventory'}
           </Button>
         </div>
       </form>

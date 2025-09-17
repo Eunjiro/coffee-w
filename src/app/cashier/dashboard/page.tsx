@@ -4,16 +4,13 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import CashierLayout from "../components/CashierLayout";
-import { 
-  DollarSign, 
-  ShoppingCart, 
-  CheckCircle2, 
-  Clock, 
-  TrendingUp, 
-  Users,
+import {
+  DollarSign,
+  ShoppingCart,
+  CheckCircle2,
+  TrendingUp,
   RefreshCw,
   Eye,
-  Calendar
 } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/app/admin/components/ui/Button";
@@ -50,7 +47,7 @@ interface TopSellingItem {
 export default function CashierDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
+
   const [stats, setStats] = useState<DashboardStats>({
     totalRevenue: 0,
     totalOrders: 0,
@@ -60,7 +57,7 @@ export default function CashierDashboard() {
     todayRevenue: 0,
     todayOrders: 0,
   });
-  
+
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [topSellingItems, setTopSellingItems] = useState<TopSellingItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -81,12 +78,12 @@ export default function CashierDashboard() {
     const fetchDashboardData = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         // Fetch stats
         const statsRes = await fetch("/api/cashier/dashboard");
         const statsData = await statsRes.json();
-        
+
         if (statsRes.ok) {
           setStats(statsData);
         } else {
@@ -96,18 +93,26 @@ export default function CashierDashboard() {
         // Fetch recent orders
         const ordersRes = await fetch("/api/orders");
         const ordersData = await ordersRes.json();
-        
+
         if (ordersRes.ok && ordersData.success) {
           const recent = ordersData.orders
             .slice(0, 5)
-            .map((order: any) => ({
+            .map((order: {
+              id: number;
+              total: number;
+              status: string;
+              paymentMethod?: string;
+              createdAt: string;
+              users?: { name?: string };
+              orderitems?: { quantity: number; menu?: { name?: string } }[];
+            }) => ({
               id: order.id,
               total: Number(order.total),
               status: order.status,
               paymentMethod: order.paymentMethod || "CASH",
               createdAt: order.createdAt,
               customerName: order.users?.name || "Unknown",
-              items: order.orderitems?.map((item: any) => ({
+              items: order.orderitems?.map(item => ({
                 name: item.menu?.name || "Unknown Item",
                 quantity: item.quantity,
               })) || [],
@@ -118,7 +123,7 @@ export default function CashierDashboard() {
         // Fetch top selling items
         const topSellingRes = await fetch("/api/admin/dashboard?filter=today");
         const topSellingData = await topSellingRes.json();
-        
+
         if (topSellingRes.ok && topSellingData.bestSellers?.today) {
           setTopSellingItems(topSellingData.bestSellers.today);
         }
@@ -147,19 +152,6 @@ export default function CashierDashboard() {
         return "bg-blue-100 text-blue-700";
       case "pending":
         return "bg-yellow-100 text-yellow-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  };
-
-  const getPaymentMethodColor = (method: string) => {
-    switch (method?.toLowerCase()) {
-      case "cash":
-        return "bg-green-100 text-green-700";
-      case "card":
-        return "bg-purple-100 text-purple-700";
-      case "gcash":
-        return "bg-blue-100 text-blue-700";
       default:
         return "bg-gray-100 text-gray-700";
     }
@@ -216,8 +208,8 @@ export default function CashierDashboard() {
   return (
     <CashierLayout>
       <div className="p-6 space-y-6">
-        <PageHeader 
-          title="Cashier Dashboard" 
+        <PageHeader
+          title="Cashier Dashboard"
           description="Overview of your sales and transactions"
           actions={
             <Button icon={RefreshCw} onClick={handleRefresh}>
@@ -231,7 +223,7 @@ export default function CashierDashboard() {
           <div className="bg-white shadow-sm p-6 rounded-xl">
             <div className="flex justify-between items-center">
               <div>
-                <p className="font-medium text-[#776B5D]/70 text-sm">Today's Revenue</p>
+                <p className="font-medium text-[#776B5D]/70 text-sm">Today&apos;s Revenue</p>
                 <p className="font-bold text-[#776B5D] text-2xl">{formatCurrency(stats.todayRevenue)}</p>
               </div>
               <div className="bg-green-100 p-3 rounded-full">
@@ -243,7 +235,7 @@ export default function CashierDashboard() {
           <div className="bg-white shadow-sm p-6 rounded-xl">
             <div className="flex justify-between items-center">
               <div>
-                <p className="font-medium text-[#776B5D]/70 text-sm">Today's Orders</p>
+                <p className="font-medium text-[#776B5D]/70 text-sm">Today&apos;s Orders</p>
                 <p className="font-bold text-[#776B5D] text-2xl">{formatNumber(stats.todayOrders)}</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-full">

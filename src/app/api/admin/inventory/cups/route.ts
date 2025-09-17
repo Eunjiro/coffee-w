@@ -8,9 +8,10 @@ export async function GET() {
       orderBy: { name: "asc" },
     });
     return NextResponse.json(cups);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to load cups" }, { status: 500 });
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: "Failed to load cups" }, { status: 500 });
   }
 }
-
-

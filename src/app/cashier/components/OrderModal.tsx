@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MenuItem, CartItem, Size } from "@/types/types";
+import Image from "next/image";
 
 interface OrderModalProps {
     item: MenuItem;
@@ -58,7 +59,12 @@ export default function OrderModal({ item, onClose, onAddToCart }: OrderModalPro
                     <div className="flex gap-4 border-b border-[#B0A695] pb-4">
                         <div className="w-40 h-40 bg-white rounded flex items-center justify-center overflow-hidden">
                             {item.image ? (
-                                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                <Image
+                                    src={item.image}
+                                    alt={item.name}
+                                    fill
+                                    className="object-cover rounded"
+                                />
                             ) : (
                                 <span className="text-gray-400">No Image</span>
                             )}
@@ -77,11 +83,10 @@ export default function OrderModal({ item, onClose, onAddToCart }: OrderModalPro
                             {item.sizes.map(size => (
                                 <button
                                     key={size.id}
-                                    className={`px-3 py-2 rounded border ${
-                                        selectedSize?.id === size.id
+                                    className={`px-3 py-2 rounded border ${selectedSize?.id === size.id
                                             ? "bg-[#776B5D] text-white"
                                             : "bg-white border-[#B0A695] text-[#776B5D]"
-                                    }`}
+                                        }`}
                                     onClick={() => setSelectedSize(size)}
                                 >
                                     {size.label} ₱{size.price}

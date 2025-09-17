@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { menu_type, menu_status } from "@prisma/client";
 
+// Input DTOs
 interface IngredientInput {
   ingredientId: number;
   qtyNeeded: number;
@@ -10,6 +11,7 @@ interface IngredientInput {
 interface SizeInput {
   label: string;
   price: number;
+  cupId?: number;
   ingredients: IngredientInput[];
 }
 
@@ -25,12 +27,29 @@ interface MenuInput {
 // Strict allowed size keys
 type SizeKey = "small" | "medium" | "large";
 
-interface IngredientsBySize {
-  small: any[];
-  medium: any[];
-  large: any[];
+interface IngredientDetail {
+  id: number | null;
+  name: string;
+  quantity: number; // already converted from Decimal
+  recipeId: number;
+  sizeId: number;
 }
 
+interface IngredientsBySize {
+  small: IngredientDetail[];
+  medium: IngredientDetail[];
+  large: IngredientDetail[];
+}
+
+// Utility to format error safely
+function formatError(err: unknown): { error: string } {
+  if (err instanceof Error) {
+    return { error: err.message };
+  }
+  return { error: "An unexpected error occurred" };
+}
+
+// ---------------- GET ----------------
 export async function GET() {
   try {
     const menus = await prisma.menu.findMany({
@@ -50,11 +69,7 @@ export async function GET() {
     });
 
     const result = (menus || []).map((menu) => {
-      const ingredientsBySize: IngredientsBySize = {
-        small: [],
-        medium: [],
-        large: [],
-      };
+      const ingredientsBySize: IngredientsBySize = { small: [], medium: [], large: [] };
 
       menu.sizes.forEach((size) => {
         const sizeKey = size.label.toLowerCase() as SizeKey;
@@ -64,7 +79,7 @@ export async function GET() {
             ingredientsBySize[sizeKey].push({
               id: ri.ingredients?.id ?? null,
               name: ri.ingredients?.name ?? "Unknown",
-              quantity: ri.qtyNeeded ?? 0,
+              quantity: ri.qtyNeeded?.toNumber() ?? 0, // Decimal -> number
               recipeId: recipe.id,
               sizeId: size.id,
             });
@@ -81,7 +96,7 @@ export async function GET() {
             recipeingredients: recipe.recipeingredients.map((ri) => ({
               id: ri.ingredients?.id ?? null,
               name: ri.ingredients?.name ?? "Unknown",
-              qtyNeeded: ri.qtyNeeded ?? 0,
+              qtyNeeded: ri.qtyNeeded?.toNumber() ?? 0, // Decimal -> number
               recipeId: recipe.id,
               sizeId: size.id,
             })),
@@ -92,25 +107,21 @@ export async function GET() {
     });
 
     return NextResponse.json(result);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("GET /menu error:", err);
-    return NextResponse.json(
-      { error: err.message || "Failed to fetch menus" },
-      { status: 500 }
-    );
+    return NextResponse.json(formatError(err), { status: 500 });
   }
 }
 
+// ---------------- POST ----------------
 export async function POST(req: Request) {
   try {
     const data: MenuInput = await req.json();
 
-    // Validate request payload
     if (!data.name || !data.type || !data.status || !Array.isArray(data.sizes)) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
 
-    // Create the menu
     const menu = await prisma.menu.create({
       data: {
         name: data.name,
@@ -121,7 +132,6 @@ export async function POST(req: Request) {
       },
     });
 
-    // Create sizes and associated recipes
     for (const s of data.sizes) {
       if (!s.label || typeof s.price !== "number") continue;
 
@@ -130,12 +140,10 @@ export async function POST(req: Request) {
           label: s.label,
           price: s.price,
           menuId: menu.id,
-          // accept optional cupId from client
-          ...(s as any).cupId ? { cupId: Number((s as any).cupId) } : {},
+          ...(s.cupId ? { cupId: s.cupId } : {}),
         },
       });
 
-      // Create a recipe for this size if ingredients are provided
       if (Array.isArray(s.ingredients) && s.ingredients.length > 0) {
         await prisma.recipes.create({
           data: {
@@ -155,7 +163,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // Fetch the full menu with relations
     const fullMenu = await prisma.menu.findUnique({
       where: { id: menu.id },
       include: {
@@ -173,12 +180,7 @@ export async function POST(req: Request) {
       },
     });
 
-    // Build structured ingredients by size for the response
-    const ingredientsBySize: IngredientsBySize = {
-      small: [],
-      medium: [],
-      large: [],
-    };
+    const ingredientsBySize: IngredientsBySize = { small: [], medium: [], large: [] };
 
     if (fullMenu?.sizes) {
       fullMenu.sizes.forEach((size) => {
@@ -189,7 +191,7 @@ export async function POST(req: Request) {
             ingredientsBySize[sizeKey].push({
               id: ri.ingredients?.id ?? null,
               name: ri.ingredients?.name ?? "Unknown",
-              quantity: ri.qtyNeeded ?? 0,
+              quantity: ri.qtyNeeded?.toNumber() ?? 0, // Decimal -> number
               recipeId: recipe.id,
               sizeId: size.id,
             });
@@ -198,15 +200,9 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({
-      ...fullMenu,
-      ingredients: ingredientsBySize,
-    });
-  } catch (err: any) {
+    return NextResponse.json({ ...fullMenu, ingredients: ingredientsBySize });
+  } catch (err: unknown) {
     console.error("POST /menu error:", err);
-    return NextResponse.json(
-      { error: err.message || "Failed to create menu" },
-      { status: 500 }
-    );
+    return NextResponse.json(formatError(err), { status: 500 });
   }
 }

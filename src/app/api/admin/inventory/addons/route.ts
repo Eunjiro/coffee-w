@@ -15,9 +15,6 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Calculate unitCost based on qtyPerPack and packagePrice, if necessary for logic
-    const unitCost = qtyPerPack && packagePrice ? packagePrice / qtyPerPack : 0;
-
     // Create the new addon in the menu table
     const newAddon = await prisma.menu.create({
       data: {

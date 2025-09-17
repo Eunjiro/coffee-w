@@ -29,6 +29,10 @@ interface IngredientItem {
   sizeId: number;
 }
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "An unexpected error occurred";
+}
+
 // GET single menu
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -90,9 +94,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     });
 
     return NextResponse.json(result);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("GET /menu/[id] error:", err);
-    return NextResponse.json({ error: err.message || "Failed to fetch menu" }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
   }
 }
 
@@ -137,7 +141,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                 .filter(i => i.ingredientId && i.quantity)
                 .map(i => ({
                   ingredientId: i.ingredientId,
-                  qtyNeeded: i.quantity, // <-- FIX here
+                  qtyNeeded: i.quantity,
                 })),
             },
           },
@@ -159,9 +163,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     });
 
     return NextResponse.json(fullMenu ?? []);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("PUT /menu/[id] error:", err);
-    return NextResponse.json({ error: err.message || "Failed to update menu" }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
   }
 }
 
@@ -178,8 +182,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     await prisma.menu.delete({ where: { id: menuId } });
 
     return NextResponse.json({ message: "Menu deleted" });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("DELETE /menu/[id] error:", err);
-    return NextResponse.json({ error: err.message || "Failed to delete menu" }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
   }
 }

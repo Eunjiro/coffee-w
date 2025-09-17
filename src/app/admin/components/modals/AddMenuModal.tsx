@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Plus, UploadCloud } from "lucide-react";
+import Image from "next/image"; // ✅ Use next/image
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import FormField, { Input, Select } from "../ui/FormField";
@@ -20,6 +21,23 @@ type MenuIngredient = {
 
 type MenuCup = {
   price: string;
+};
+
+type IngredientOption = {
+  id: number;
+  name: string;
+  unit?: string;
+};
+
+type ApiIngredient = {
+  id: number;
+  name: string;
+  units?: { name: string };
+};
+
+type ApiError = {
+  error?: string;
+  message?: string;
 };
 
 const menuTypes = [
@@ -52,8 +70,7 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
     large: [],
   });
 
-  const [ingredientOptions, setIngredientOptions] = useState<{ id: number; name: string; unit?: string }[]>([]);
-  
+  const [ingredientOptions, setIngredientOptions] = useState<IngredientOption[]>([]);
 
   // Reset form when modal opens
   const resetForm = useCallback(() => {
@@ -78,13 +95,13 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
     (async () => {
       try {
         const ingsRes = await fetch("/api/admin/inventory/ingredients");
-        const ings = ingsRes.ok ? await ingsRes.json() : [];
+        const ings: ApiIngredient[] = ingsRes.ok ? await ingsRes.json() : [];
         setIngredientOptions(
           Array.isArray(ings)
-            ? ings.map((i: any) => ({ id: i.id, name: i.name, unit: i.units?.name }))
+            ? ings.map((i) => ({ id: i.id, name: i.name, unit: i.units?.name }))
             : []
         );
-      } catch (e) {
+      } catch {
         setIngredientOptions([]);
       }
     })();
@@ -97,11 +114,11 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
   };
 
   const handleSizeChange = (size: keyof typeof sizes) => {
-    setSizes(prev => ({ ...prev, [size]: !prev[size] }));
+    setSizes((prev) => ({ ...prev, [size]: !prev[size] }));
   };
 
   const handleAddIngredient = (size: typeof sizesList[number]) => {
-    setIngredients(prev => ({
+    setIngredients((prev) => ({
       ...prev,
       [size]: [...prev[size], { id: `ing-${Date.now()}`, ingredientId: "", quantity: "" }],
     }));
@@ -113,14 +130,14 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
     field: "ingredientId" | "quantity",
     value: string
   ) => {
-    setIngredients(prev => ({
+    setIngredients((prev) => ({
       ...prev,
       [size]: prev[size].map((ing, i) => (i === index ? { ...ing, [field]: value } : ing)),
     }));
   };
 
   const handleCupChange = (size: typeof sizesList[number], value: string) => {
-    setCups(prev => ({
+    setCups((prev) => ({
       ...prev,
       [size]: { ...prev[size], price: value },
     }));
@@ -144,24 +161,24 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
         sizes:
           menuType === "ADDON"
             ? [
-                {
-                  label: "Single",
-                  price: parseFloat(addonPrice || "0"),
-                  ingredients: [],
-                },
-              ]
+              {
+                label: "Single",
+                price: parseFloat(addonPrice || "0"),
+                ingredients: [],
+              },
+            ]
             : sizesList
-                .filter(size => sizes[size])
-                .map(size => ({
-                  label: size.charAt(0).toUpperCase() + size.slice(1),
-                  price: parseFloat(cups[size].price || "0"),
-                  ingredients: ingredients[size]
-                    .filter(ing => ing.ingredientId && ing.quantity)
-                    .map(ing => ({
-                      ingredientId: Number(ing.ingredientId),
-                      qtyNeeded: parseFloat(ing.quantity),
-                    })),
-                })),
+              .filter((size) => sizes[size])
+              .map((size) => ({
+                label: size.charAt(0).toUpperCase() + size.slice(1),
+                price: parseFloat(cups[size].price || "0"),
+                ingredients: ingredients[size]
+                  .filter((ing) => ing.ingredientId && ing.quantity)
+                  .map((ing) => ({
+                    ingredientId: Number(ing.ingredientId),
+                    qtyNeeded: parseFloat(ing.quantity),
+                  })),
+              })),
       };
 
       const res = await fetch("/api/admin/menu", {
@@ -171,15 +188,19 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData?.error || "Failed to create menu");
+        const errorData: ApiError = await res.json();
+        throw new Error(errorData.error || errorData.message || "Failed to create menu");
       }
 
       onNext();
       onClose();
-    } catch (err: any) {
-      console.error(err);
-      (window as any).toast?.error?.(`Error creating menu: ${err.message}`);
+    } catch (err) {
+      if (err instanceof Error) {
+        console.error(err);
+        (window as unknown as { toast?: { error?: (msg: string) => void } }).toast?.error?.(
+          `Error creating menu: ${err.message}`
+        );
+      }
     }
   };
 
@@ -200,7 +221,13 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
           <label htmlFor="image-upload" className="w-40 h-40 cursor-pointer">
             <div className="flex flex-col justify-center items-center hover:bg-[#B0A695]/10 border-[#B0A695] border-2 hover:border-[#776B5D] border-dashed rounded-full w-full h-full text-[#776B5D]/60 transition-colors">
               {imagePreview ? (
-                <img src={imagePreview} alt="Menu" className="rounded-full w-full h-full object-cover" />
+                <Image
+                  src={imagePreview}
+                  alt="Menu"
+                  className="rounded-full object-cover"
+                  width={160}
+                  height={160}
+                />
               ) : (
                 <>
                   <UploadCloud size={40} />

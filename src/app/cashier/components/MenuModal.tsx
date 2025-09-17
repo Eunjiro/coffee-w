@@ -5,12 +5,19 @@ import { Minus, Plus } from "lucide-react";
 import Modal from "@/app/admin/components/ui/Modal";
 import Button from "@/app/admin/components/ui/Button";
 import { MenuItem, CartItem, Size, Addon } from "@/types/types";
+import Image from "next/image";
 
 interface MenuModalProps {
     item: MenuItem;
     open: boolean;
     onClose: () => void;
     onAddToOrder: (cartItem: CartItem) => void;
+}
+
+interface ToastWindow extends Window {
+    toast?: {
+        error?: (msg: string) => void;
+    }
 }
 
 const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder }) => {
@@ -31,7 +38,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
         const loadAddonData = async () => {
             try {
                 const response = await fetch("/api/cashier/addons");
-                const data = await response.json();
+                const data: MenuItem[] = await response.json();
                 console.log('Loaded addon data:', data);
                 setAddonData(Array.isArray(data) ? data : []);
             } catch (error) {
@@ -44,7 +51,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
 
     const total = useMemo(() => {
         if (!selectedSize) return 0;
-        
+
         const basePrice = Number(selectedSize.price) || 0;
         const addonsTotal = selectedAddons.reduce((sum, addon) => {
             const addonPrice = Number(addon.price) || 0;
@@ -65,14 +72,14 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
             }
         });
     };
-    
+
     const isOrderable = item.status === "Available";
 
     const handleAddToOrder = () => {
         if (!selectedSize) return;
 
         const cartKey = `${item.id}-${selectedSize.id}-${selectedAddons.map(a => a.id).join(',')}`;
-        
+
         // Calculate unit price (base price + addon prices)
         const basePrice = Number(selectedSize.price) || 0;
         const addonPrice = selectedAddons.reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
@@ -81,7 +88,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
         // Validate the cart item before adding
         if (isNaN(unitPrice) || unitPrice <= 0) {
             console.error('Invalid cart item price:', { basePrice, addonPrice, unitPrice, selectedSize, selectedAddons });
-            (window as any).toast?.error?.('Error: Invalid price calculation. Please try again.');
+            (window as ToastWindow).toast?.error?.('Error: Invalid price calculation.');
             return;
         }
 
@@ -109,19 +116,19 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
         <div className="flex justify-between items-center gap-4 w-full">
             {/* Quantity Selector */}
             <div className="flex items-center gap-3">
-                <Button 
-                    variant="ghost" 
+                <Button
+                    variant="ghost"
                     size="sm"
-                    onClick={() => setQuantity(q => Math.max(1, q - 1))} 
+                    onClick={() => setQuantity(q => Math.max(1, q - 1))}
                     aria-label="Decrease quantity"
                 >
                     <Minus className="w-4 h-4" />
                 </Button>
                 <span className="w-8 font-bold text-[#776B5D] text-lg text-center">{quantity}</span>
-                <Button 
-                    variant="ghost" 
+                <Button
+                    variant="ghost"
                     size="sm"
-                    onClick={() => setQuantity(q => q + 1)} 
+                    onClick={() => setQuantity(q => q + 1)}
                     aria-label="Increase quantity"
                 >
                     <Plus className="w-4 h-4" />
@@ -149,10 +156,11 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
         >
             {/* Image Banner */}
             <div className="relative mb-6 w-full h-48">
-                <img 
-                    src={item.image || "/placeholder.png"} 
-                    alt={item.name} 
-                    className="rounded-lg w-full h-full object-cover" 
+                <Image
+                    src={item.image || "/placeholder.png"}
+                    alt={item.name}
+                    fill
+                    className="rounded-lg object-cover"
                 />
             </div>
 
@@ -186,8 +194,8 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
                                     key={addon.id}
                                     variant={selectedAddons.some(a => a.id === addon.id) ? "primary" : "secondary"}
                                     onClick={() => {
-                                        const addonPrice = addon.sizes && addon.sizes.length > 0 
-                                            ? Number(addon.sizes[0].price) || 0 
+                                        const addonPrice = addon.sizes && addon.sizes.length > 0
+                                            ? Number(addon.sizes[0].price) || 0
                                             : 0;
                                         handleAddonToggle({
                                             id: addon.id,

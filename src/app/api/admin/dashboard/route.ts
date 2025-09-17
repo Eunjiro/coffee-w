@@ -1,9 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { orders, orderitems, users, menu, orderitemaddons } from "@prisma/client";
+
+type RecentOrderItem = {
+  name: string;
+  quantity: number;
+  addons: string[];
+};
+
+type RecentOrder = {
+  id: number;
+  total: number;
+  createdAt: Date;
+  status: string;
+  paymentMethod: string;
+  items: RecentOrderItem[];
+  users: { name: string };
+};
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const filter = searchParams.get("filter") || "today";
+  // const filter = searchParams.get("filter") || "today"; // ❌ unused → removed
 
   const now = new Date();
 
@@ -16,7 +33,7 @@ export async function GET(req: Request) {
 
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Total sales - count both PAID and COMPLETED orders
+  // Total sales
   const [salesToday, salesWeek, salesMonth] = await Promise.all([
     prisma.orders.aggregate({
       _sum: { total: true },
@@ -39,40 +56,31 @@ export async function GET(req: Request) {
     prisma.orders.count({ where: { createdAt: { gte: startOfMonth } } }),
   ]);
 
-  // Best sellers helper
+  // Best sellers
   const getBestSellers = async (start: Date) => {
-    // Get orders with their items to calculate revenue
     const orders = await prisma.orders.findMany({
-      where: { 
-        createdAt: { gte: start },
-        status: { in: ["PAID", "COMPLETED"] }
-      },
+      where: { createdAt: { gte: start }, status: { in: ["PAID", "COMPLETED"] } },
       include: {
         orderitems: {
           include: {
             menu: true,
             sizes: true,
-            orderitemaddons: {
-              include: {
-                menu: true
-              }
-            }
-          }
-        }
-      }
+            orderitemaddons: { include: { menu: true } },
+          },
+        },
+      },
     });
 
-    // Group by menuId and calculate totals
     const itemMap = new Map<number, { name: string; sold: number; revenue: number }>();
-    
-    orders.forEach(order => {
+
+    orders.forEach((order) => {
       const orderTotal = Number(order.total);
       const totalQuantity = order.orderitems.reduce((sum, item) => sum + item.quantity, 0);
-      
-      order.orderitems.forEach(item => {
-        // Calculate proportional revenue based on quantity
-        const proportionalRevenue = totalQuantity > 0 ? (orderTotal * item.quantity) / totalQuantity : 0;
-        
+
+      order.orderitems.forEach((item) => {
+        const proportionalRevenue =
+          totalQuantity > 0 ? (orderTotal * item.quantity) / totalQuantity : 0;
+
         if (itemMap.has(item.menuId)) {
           const existing = itemMap.get(item.menuId)!;
           existing.sold += item.quantity;
@@ -81,19 +89,17 @@ export async function GET(req: Request) {
           itemMap.set(item.menuId, {
             name: item.menu.name,
             sold: item.quantity,
-            revenue: proportionalRevenue
+            revenue: proportionalRevenue,
           });
         }
       });
     });
 
-    // Convert to array and sort by quantity sold
     return Array.from(itemMap.entries())
       .map(([id, data]) => ({ id, ...data }))
       .sort((a, b) => b.sold - a.sold)
       .slice(0, 3);
   };
-
 
   const [bestToday, bestWeek, bestMonth] = await Promise.all([
     getBestSellers(startOfDay),
@@ -111,39 +117,34 @@ export async function GET(req: Request) {
   // Recent orders
   const recentOrdersRaw = await prisma.orders.findMany({
     where: { status: { in: ["PAID", "COMPLETED"] } },
-    include: { 
+    include: {
       users: true,
       orderitems: {
         include: {
           menu: true,
-          orderitemaddons: {
-            include: {
-              menu: true
-            }
-          }
-        }
-      }
+          orderitemaddons: { include: { menu: true } },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
     take: 5,
   });
 
-  const recentOrders: any[] = recentOrdersRaw.map((order) => ({
+  const recentOrders: RecentOrder[] = recentOrdersRaw.map((order) => ({
     id: order.id,
-    total: order.total.toNumber(), // convert Decimal -> number
+    total: order.total.toNumber(),
     createdAt: order.createdAt,
     status: order.status.toLowerCase(),
     paymentMethod: order.paymentMethod?.toLowerCase() || "cash",
-    items: order.orderitems.map((item: any) => ({
+    items: order.orderitems.map((item) => ({
       name: item.menu.name,
       quantity: item.quantity,
-      addons: item.orderitemaddons.map((addon: any) => addon.menu.name)
+      addons: item.orderitemaddons.map((addon) => addon.menu.name),
     })),
     users: order.users ? { name: order.users.name } : { name: "Guest" },
   }));
 
-
-  // Sales overview for last 7 days
+  // Sales overview
   const salesOverview: { date: string; total: number }[] = [];
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
@@ -155,7 +156,10 @@ export async function GET(req: Request) {
 
     const salesForDay = await prisma.orders.aggregate({
       _sum: { total: true },
-      where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: start, lte: end } },
+      where: {
+        status: { in: ["PAID", "COMPLETED"] },
+        createdAt: { gte: start, lte: end },
+      },
     });
 
     salesOverview.push({
@@ -170,21 +174,9 @@ export async function GET(req: Request) {
       week: Number(salesWeek._sum.total || 0),
       month: Number(salesMonth._sum.total || 0),
     },
-    orders: {
-      today: ordersToday,
-      week: ordersWeek,
-      month: ordersMonth,
-    },
-    bestSellers: {
-      today: bestToday,
-      week: bestWeek,
-      month: bestMonth,
-    },
-    lowStock: {
-      today: lowStock,
-      week: lowStock,
-      month: lowStock,
-    },
+    orders: { today: ordersToday, week: ordersWeek, month: ordersMonth },
+    bestSellers: { today: bestToday, week: bestWeek, month: bestMonth },
+    lowStock: { today: lowStock, week: lowStock, month: lowStock },
     recentOrders,
     salesOverview,
   });

@@ -11,7 +11,20 @@ import { useSession } from "next-auth/react";
 import { MenuItem as APIItem } from "../types";
 import { Clipboard, Plus, Star } from "lucide-react";
 import SearchAndFilters from "../components/ui/SearchAndFilters";
+import Image from "next/image";
+import type { IngredientOption } from "../components/modals/EditMenuModal";
 
+interface Cup {
+  id: number;
+  name: string;
+}
+
+interface IngredientInput {
+  ingredientId: number;
+  quantity: number;
+}
+
+// ---- Component ----
 export default function AdminMenuPage() {
   const { data: session, status } = useSession();
 
@@ -24,48 +37,42 @@ export default function AdminMenuPage() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ModalMenuItem | null>(null);
 
-  const [cups, setCups] = useState<{ id: number; name: string }[]>([]);
-  const [ingredientOptions, setIngredientOptions] = useState<{ id: number; name: string; unit?: string }[]>([]);
+  const [cups, setCups] = useState<Cup[]>([]);
+  const [ingredientOptions, setIngredientOptions] = useState<IngredientOption[]>([]);
 
-  const [categories, setCategories] = useState<string[]>([
-    "All Items",
-    "Coffee",
-    "Non-Coffee",
-    "Meal",
-    "Addon"
-  ]);
+  const [categories, setCategories] = useState<string[]>(["All Items", "Coffee", "Non-Coffee", "Meal", "Addon"]);
 
-  // Fetch menu items on mount
+  // Fetch menu items & related data
   useEffect(() => {
     fetchMenu();
-    // parallel load cups and ingredients for modals
     Promise.all([
-      fetch("/api/admin/inventory/cups").then(r => r.ok ? r.json() : []),
-      fetch("/api/admin/inventory/ingredients").then(r => r.ok ? r.json() : []),
-    ]).then(([cupsRes, ingsRes]) => {
-      setCups(Array.isArray(cupsRes) ? cupsRes : []);
-      setIngredientOptions(
-        Array.isArray(ingsRes)
-          ? ingsRes.map((i: any) => ({ id: i.id, name: i.name, unit: i.units?.name }))
-          : []
-      );
-    }).catch(() => {
-      setCups([]);
-      setIngredientOptions([]);
-    });
+      fetch("/api/admin/inventory/cups").then(r => (r.ok ? r.json() : [])),
+      fetch("/api/admin/inventory/ingredients").then(r => (r.ok ? r.json() : [])),
+    ])
+      .then(([cupsRes, ingsRes]) => {
+        setCups(Array.isArray(cupsRes) ? cupsRes : []);
+        setIngredientOptions(
+          Array.isArray(ingsRes)
+            ? ingsRes.map((i: { id: number; name: string; units?: { name?: string } }) => ({
+                id: i.id,
+                name: i.name,
+                unit: i.units?.name,
+              }))
+            : []
+        );
+      })
+      .catch(() => {
+        setCups([]);
+        setIngredientOptions([]);
+      });
   }, []);
 
   async function fetchMenu() {
     try {
       const res = await fetch("/api/admin/menu");
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      const data = await res.json();
-
-      if (Array.isArray(data)) {
-        setMenuItems(data as APIItem[]);
-      } else {
-        setMenuItems([]);
-      }
+      const data: APIItem[] = await res.json();
+      setMenuItems(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch menu:", err);
       setMenuItems([]);
@@ -78,19 +85,19 @@ export default function AdminMenuPage() {
       id: item.id,
       name: item.name,
       image: item.image,
-      type: item.type as ModalMenuItem["type"], // Direct mapping from schema
+      type: item.type as ModalMenuItem["type"],
       status: item.status,
       sizes: item.sizes.map(s => ({
         id: s.id,
         label: s.label,
         price: s.price,
-        cupId: (s as any).cupId ?? null // Ensure safe access
+        cupId: "cupId" in s ? (s as { cupId?: number | null }).cupId ?? null : null,
       })),
       ingredients: {
         small: [],
         medium: [],
-        large: []
-      }
+        large: [],
+      },
     };
 
     setSelectedItem(normalizedItem);
@@ -106,20 +113,23 @@ export default function AdminMenuPage() {
     const payload = {
       name: updated.name,
       image: updated.image || "",
-      type: (String(updated.type || "").replace(/-/g, "_") as any),
+      type: String(updated.type || "").replace(/-/g, "_"),
       status: updated.status,
       category: undefined,
       sizes: ["small", "medium", "large"].flatMap((label) => {
         const size = updated.sizes.find(s => s.label.toLowerCase() === label);
-        if (!size) return [] as any[];
-        return [{
-          label: size.label.charAt(0).toUpperCase() + size.label.slice(1),
-          price: Number(size.price) || 0,
-          ingredients: (updated.ingredients as any)[label]?.map((i: any) => ({
-            ingredientId: Number(i.ingredientId),
-            quantity: Number(i.quantity),
-          })) || [],
-        }];
+        if (!size) return [];
+        return [
+          {
+            label: size.label.charAt(0).toUpperCase() + size.label.slice(1),
+            price: Number(size.price) || 0,
+            ingredients:
+              (updated.ingredients as Record<string, IngredientInput[]>)[label]?.map(i => ({
+                ingredientId: Number(i.ingredientId),
+                quantity: Number(i.quantity),
+              })) || [],
+          },
+        ];
       }),
     };
 
@@ -205,16 +215,15 @@ export default function AdminMenuPage() {
               { key: "COFFEE", label: "Coffee" },
               { key: "NON-COFFEE", label: "Non-Coffee" },
               { key: "MEAL", label: "Meal" },
-              { key: "ADDON", label: "Addon" }
+              { key: "ADDON", label: "Addon" },
             ] as const
           ).map(filter => (
             <div key={filter.key} className="flex justify-center items-center bg-white p-2 rounded-xl">
               <button
                 onClick={() => setActiveFilter(filter.key)}
-                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md font-normal transition-colors duration-150 w-full h-full ${activeFilter === filter.key
-                    ? "bg-[#776B5D] text-[#F3EEEA]"
-                    : "bg-transparent text-[#776B5D]"
-                  }`}
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md font-normal transition-colors duration-150 w-full h-full ${
+                  activeFilter === filter.key ? "bg-[#776B5D] text-[#F3EEEA]" : "bg-transparent text-[#776B5D]"
+                }`}
               >
                 <Clipboard
                   className="w-5 h-5"
@@ -226,11 +235,7 @@ export default function AdminMenuPage() {
           ))}
         </div>
 
-        <SearchAndFilters
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          statusTags={statusTags}
-        />
+        <SearchAndFilters searchValue={searchTerm} onSearchChange={setSearchTerm} statusTags={statusTags} />
 
         {/* Menu Grid */}
         <div className="gap-6 grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 pr-6 pb-[20px] w-full max-h-[60vh] overflow-y-auto custom-scrollbar">
@@ -238,39 +243,40 @@ export default function AdminMenuPage() {
             filteredMenu.map(item => (
               <div
                 key={item.id}
-                className={`flex flex-col items-start bg-white p-4 border rounded-xl transition duration-300 cursor-pointer hover:shadow-xl group border-[#B0A695] ${item.status === "AVAILABLE"
-                    ? "hover:border-[#776B5D]"
-                    : "opacity-50 grayscale"
-                  }`}
+                className={`flex flex-col items-start bg-white p-4 border rounded-xl transition duration-300 cursor-pointer hover:shadow-xl group border-[#B0A695] ${
+                  item.status === "AVAILABLE" ? "hover:border-[#776B5D]" : "opacity-50 grayscale"
+                }`}
                 onClick={() => handleEditItem(item)}
               >
                 {item.image ? (
-                  <img src={item.image} alt={item.name} />
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    width={240}
+                    height={224}
+                    className="object-cover w-60 h-56 rounded"
+                  />
                 ) : (
                   <div className="w-60 h-56 bg-gray-200 flex items-center justify-center text-gray-500">
                     No Image
                   </div>
                 )}
 
-                <div className="mb-2 font-bold text-[#776B5D] text-xl truncate">
-                  {item.name}
-                </div>
+                <div className="mb-2 font-bold text-[#776B5D] text-xl truncate">{item.name}</div>
                 <div className="mb-2 text-sm capitalize font-medium text-[#776B5D]/70">
                   {item.type.replace(/_/g, " ").replace(/-/g, " ")}
                 </div>
                 <div className="flex flex-wrap gap-2 mb-3 font-medium text-sm">
                   {item.sizes.map(s => (
-                    <span
-                      key={s.label}
-                      className="bg-[#B0A695]/20 px-2 py-1 rounded-lg text-[#776B5D]"
-                    >
+                    <span key={s.label} className="bg-[#B0A695]/20 px-2 py-1 rounded-lg text-[#776B5D]">
                       {s.label} {formatPrice(s.price)}
                     </span>
                   ))}
                 </div>
                 <div
-                  className={`font-medium text-sm ${item.status === "AVAILABLE" ? "text-green-600" : "text-red-500"
-                    }`}
+                  className={`font-medium text-sm ${
+                    item.status === "AVAILABLE" ? "text-green-600" : "text-red-500"
+                  }`}
                 >
                   {item.status}
                 </div>
@@ -279,12 +285,8 @@ export default function AdminMenuPage() {
           ) : (
             <div className="flex flex-col justify-center items-center py-16 text-center justify-self-center col-span-full">
               <Clipboard className="mb-4 w-16 h-16 text-[#776B5D]/30" />
-              <h3 className="mb-2 font-bold text-[#776B5D] text-lg">
-                No menu items found
-              </h3>
-              <p className="mb-6 text-[#776B5D]/60">
-                Try adjusting your search terms or filters.
-              </p>
+              <h3 className="mb-2 font-bold text-[#776B5D] text-lg">No menu items found</h3>
+              <p className="mb-6 text-[#776B5D]/60">Try adjusting your search terms or filters.</p>
               <Button onClick={() => setMenuModalOpen(true)} icon={Plus}>
                 Add Menu Item
               </Button>
@@ -293,11 +295,7 @@ export default function AdminMenuPage() {
         </div>
 
         {/* Modals */}
-        <AddMenuModal
-          open={menuModalOpen}
-          onClose={() => setMenuModalOpen(false)}
-          onNext={fetchMenu}
-        />
+        <AddMenuModal open={menuModalOpen} onClose={() => setMenuModalOpen(false)} onNext={fetchMenu} />
         <AddCategoryModal
           open={categoryModalOpen}
           onClose={() => setCategoryModalOpen(false)}
@@ -312,7 +310,7 @@ export default function AdminMenuPage() {
           onSave={handleSaveItem}
           onDelete={handleDeleteItem}
           cups={cups}
-          ingredients={ingredientOptions as any}
+          ingredients={ingredientOptions}
         />
       </div>
     </AdminLayout>
