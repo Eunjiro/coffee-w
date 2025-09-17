@@ -24,12 +24,6 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import AdminLayout from "../components/AdminLayout";
 
-const showConfirm = (title: string, message: string) =>
-    new Promise<boolean>((resolve) => {
-        if (window.confirm(message)) resolve(true);
-        else resolve(false);
-    });
-
 const showSuccess = (title: string, message: string) => {
     toast.success(`${title}: ${message}`);
 };
@@ -76,7 +70,6 @@ export default function OrdersPage() {
     const [confirmState, setConfirmState] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => { } });
     const router = useRouter();
 
-    // ✅ Fetch Orders
     const fetchOrders = async () => {
         try {
             const res = await fetch("/api/orders");
@@ -87,7 +80,6 @@ export default function OrdersPage() {
         }
     };
 
-    // ✅ Order Actions
     const handlePayOrder = async (orderId: number) => {
         const run = async () => {
             try {
@@ -158,7 +150,6 @@ export default function OrdersPage() {
         setConfirmState({ open: true, title: "Cancel Order", message: "Are you sure you want to cancel this order?", onConfirm: () => { setConfirmState(s => ({ ...s, open: false })); run(); } });
     };
 
-    // ✅ Filter Orders
     const filteredOrders = useMemo(() => {
         const pool = statusFilter === "PENDING"
             ? orders.filter(o => o.status === "PENDING" || o.status === "PAID")
@@ -186,7 +177,6 @@ export default function OrdersPage() {
         return null;
     }
 
-    // ✅ Detail View
     if (selectedOrder) {
         const order = selectedOrder;
         return (
@@ -266,7 +256,6 @@ export default function OrdersPage() {
                             </Table>
                         </div>
 
-                        {/* ✅ Order Summary */}
                         <div className="bg-white shadow-sm p-6 rounded-xl flex flex-col gap-4">
                             <h3 className="font-semibold text-[#776B5D] text-lg">Summary</h3>
                             <div className="space-y-2 text-[#776B5D]">
@@ -320,7 +309,6 @@ export default function OrdersPage() {
         );
     }
 
-    // ✅ List View
     return (
         <AdminLayout>
             <div className="bg-[#F3EEEA] p-8 h-full overflow-y-auto custom-scrollbar">

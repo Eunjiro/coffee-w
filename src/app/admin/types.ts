@@ -5,10 +5,10 @@ export interface Ingredient {
 }
 
 export interface Size {
-  id: number;              // Make this required
+  id: number;
   label: string;
   price: number;
-  cupId?: number | null;   // Optional cupId for EditMenuModal
+  cupId?: number | null;
   ingredients?: Ingredient[];
 }
 

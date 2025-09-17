@@ -24,12 +24,6 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import CashierLayout from "../components/CashierLayout";
 
-const showConfirm = (title: string, message: string) =>
-    new Promise<boolean>((resolve) => {
-        if (window.confirm(message)) resolve(true);
-        else resolve(false);
-    });
-
 const showSuccess = (title: string, message: string) => {
     toast.success(`${title}: ${message}`);
 };
@@ -71,12 +65,11 @@ export default function OrdersPage() {
     const [statusFilter, setStatusFilter] = useState<
         "PENDING" | "COMPLETED" | "CANCELLED"
     >("PENDING");
-   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-   const [searchTerm, setSearchTerm] = useState("");
-   const [confirmState, setConfirmState] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => {} });
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [confirmState, setConfirmState] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => { } });
     const router = useRouter();
 
-    // ✅ Fetch Orders
     const fetchOrders = async () => {
         try {
             const res = await fetch("/api/orders");
@@ -87,92 +80,90 @@ export default function OrdersPage() {
         }
     };
 
-    // ✅ Order Actions
     const handlePayOrder = async (orderId: number) => {
         const run = async () => {
-          try {
-            const res = await fetch("/api/orders/pay", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setOrders((prev) =>
-                    prev.map((o) => (o.id === orderId ? { ...o, status: "PAID" } : o))
-                );
-                showSuccess("Order paid", "The order has been marked as paid.");
-            } else showError("Failed to mark order as paid", data.error || "");
-          } catch {
-            showError("Something went wrong", "Failed to mark order as paid");
-          }
+            try {
+                const res = await fetch("/api/orders/pay", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ orderId }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setOrders((prev) =>
+                        prev.map((o) => (o.id === orderId ? { ...o, status: "PAID" } : o))
+                    );
+                    showSuccess("Order paid", "The order has been marked as paid.");
+                } else showError("Failed to mark order as paid", data.error || "");
+            } catch {
+                showError("Something went wrong", "Failed to mark order as paid");
+            }
         };
         setConfirmState({ open: true, title: "Mark as Paid", message: "Are you sure you want to mark this order as paid?", onConfirm: () => { setConfirmState(s => ({ ...s, open: false })); run(); } });
     };
 
     const handleCompleteOrder = async (orderId: number) => {
         const run = async () => {
-          try {
-            const res = await fetch("/api/orders/complete", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setOrders((prev) =>
-                    prev.map((o) =>
-                        o.id === orderId ? { ...o, status: "COMPLETED" } : o
-                    )
-                );
-                showSuccess("Order completed", "The order has been marked as completed.");
-            } else showError("Failed to complete the order", data.error || "");
-          } catch {
-            showError("Something went wrong", "Failed to complete the order");
-          }
+            try {
+                const res = await fetch("/api/orders/complete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ orderId }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setOrders((prev) =>
+                        prev.map((o) =>
+                            o.id === orderId ? { ...o, status: "COMPLETED" } : o
+                        )
+                    );
+                    showSuccess("Order completed", "The order has been marked as completed.");
+                } else showError("Failed to complete the order", data.error || "");
+            } catch {
+                showError("Something went wrong", "Failed to complete the order");
+            }
         };
         setConfirmState({ open: true, title: "Complete Order", message: "Are you sure you want to mark this order as completed?", onConfirm: () => { setConfirmState(s => ({ ...s, open: false })); run(); } });
     };
 
     const handleCancelOrder = async (orderId: number) => {
         const run = async () => {
-          try {
-            const res = await fetch("/api/orders/cancel", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setOrders((prev) =>
-                    prev.map((o) =>
-                        o.id === orderId ? { ...o, status: "CANCELLED" } : o
-                    )
-                );
-                showSuccess("Order canceled", "The order has been canceled.");
-            } else showError("Failed to cancel the order", data.error || "");
-          } catch {
-            showError("Something went wrong", "Failed to cancel the order");
-          }
+            try {
+                const res = await fetch("/api/orders/cancel", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ orderId }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setOrders((prev) =>
+                        prev.map((o) =>
+                            o.id === orderId ? { ...o, status: "CANCELLED" } : o
+                        )
+                    );
+                    showSuccess("Order canceled", "The order has been canceled.");
+                } else showError("Failed to cancel the order", data.error || "");
+            } catch {
+                showError("Something went wrong", "Failed to cancel the order");
+            }
         };
         setConfirmState({ open: true, title: "Cancel Order", message: "Are you sure you want to cancel this order?", onConfirm: () => { setConfirmState(s => ({ ...s, open: false })); run(); } });
     };
 
-    // ✅ Filter Orders
-     const filteredOrders = useMemo(() => {
-         const pool = statusFilter === "PENDING"
-             ? orders.filter(o => o.status === "PENDING" || o.status === "PAID")
-             : orders.filter(o => o.status === statusFilter);
-         if (!searchTerm.trim()) return pool;
-         const q = searchTerm.trim().toLowerCase();
-         return pool.filter(o => {
-             const idMatch = String(o.id).includes(q);
-             const nameMatch = (o.users?.name || "").toLowerCase().includes(q);
-             const payMatch = (o.paymentMethod || "").toLowerCase().includes(q);
-             const itemsMatch = o.orderitems.some(i => (i.menu?.name || "").toLowerCase().includes(q));
-             return idMatch || nameMatch || payMatch || itemsMatch;
-         });
-     }, [orders, statusFilter, searchTerm]);
+    const filteredOrders = useMemo(() => {
+        const pool = statusFilter === "PENDING"
+            ? orders.filter(o => o.status === "PENDING" || o.status === "PAID")
+            : orders.filter(o => o.status === statusFilter);
+        if (!searchTerm.trim()) return pool;
+        const q = searchTerm.trim().toLowerCase();
+        return pool.filter(o => {
+            const idMatch = String(o.id).includes(q);
+            const nameMatch = (o.users?.name || "").toLowerCase().includes(q);
+            const payMatch = (o.paymentMethod || "").toLowerCase().includes(q);
+            const itemsMatch = o.orderitems.some(i => (i.menu?.name || "").toLowerCase().includes(q));
+            return idMatch || nameMatch || payMatch || itemsMatch;
+        });
+    }, [orders, statusFilter, searchTerm]);
 
     useEffect(() => {
         fetchOrders();
@@ -186,7 +177,6 @@ export default function OrdersPage() {
         return null;
     }
 
-    // ✅ Detail View
     if (selectedOrder) {
         const order = selectedOrder;
         return (
@@ -266,7 +256,6 @@ export default function OrdersPage() {
                             </Table>
                         </div>
 
-                        {/* ✅ Order Summary */}
                         <div className="bg-white shadow-sm p-6 rounded-xl flex flex-col gap-4">
                             <h3 className="font-semibold text-[#776B5D] text-lg">Summary</h3>
                             <div className="space-y-2 text-[#776B5D]">
@@ -320,7 +309,6 @@ export default function OrdersPage() {
         );
     }
 
-    // ✅ List View
     return (
         <CashierLayout>
             <div className="bg-[#F3EEEA] p-8 h-full overflow-y-auto custom-scrollbar">
@@ -339,8 +327,8 @@ export default function OrdersPage() {
                     </Button>
                 </div>
 
-                 {/* Filters */}
-                 <div className="flex flex-wrap gap-2 md:gap-4 mb-4">
+                {/* Filters */}
+                <div className="flex flex-wrap gap-2 md:gap-4 mb-4">
                     {([
                         { key: "PENDING", label: "Pending", Icon: Clock, count: orders.filter(o => o.status === "PENDING" || o.status === "PAID").length },
                         { key: "COMPLETED", label: "Completed", Icon: CheckCircle2, count: orders.filter(o => o.status === "COMPLETED").length },
@@ -352,8 +340,8 @@ export default function OrdersPage() {
                         >
                             <button
                                 className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md font-normal transition-colors duration-150 w-full h-full ${statusFilter === key
-                                        ? "bg-[#776B5D] text-[#F3EEEA]"
-                                        : "bg-transparent text-[#776B5D]"
+                                    ? "bg-[#776B5D] text-[#F3EEEA]"
+                                    : "bg-transparent text-[#776B5D]"
                                     }`}
                                 onClick={() => setStatusFilter(key)}
                             >
@@ -364,23 +352,23 @@ export default function OrdersPage() {
                                 <span className="capitalize">{label}</span>
                                 <span
                                     className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${statusFilter === key
-                                            ? "bg-[#F3EEEA] text-[#776B5D]"
-                                            : "bg-[#B0A695]/20 text-[#776B5D]"
+                                        ? "bg-[#F3EEEA] text-[#776B5D]"
+                                        : "bg-[#B0A695]/20 text-[#776B5D]"
                                         }`}
                                 >
                                     {count}
                                 </span>
                             </button>
                         </div>
-                     ))}
-                     <div className="flex items-center">
-                         <input
-                             value={searchTerm}
-                             onChange={(e) => setSearchTerm(e.target.value)}
-                             placeholder="Search orders, cashier, items, payment"
-                             className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
-                         />
-                     </div>
+                    ))}
+                    <div className="flex items-center">
+                        <input
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search orders, cashier, items, payment"
+                            className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
+                        />
+                    </div>
                 </div>
 
 
@@ -429,12 +417,12 @@ export default function OrdersPage() {
                                     <TableCell>
                                         <span
                                             className={`px-2 py-1 rounded-full text-xs font-medium ${order.status === "COMPLETED"
-                                                    ? "bg-green-100 text-green-700"
-                                                    : order.status === "PAID"
-                                                        ? "bg-blue-100 text-blue-700"
-                                                        : order.status === "PENDING"
-                                                            ? "bg-yellow-100 text-yellow-700"
-                                                            : "bg-red-100 text-red-700"
+                                                ? "bg-green-100 text-green-700"
+                                                : order.status === "PAID"
+                                                    ? "bg-blue-100 text-blue-700"
+                                                    : order.status === "PENDING"
+                                                        ? "bg-yellow-100 text-yellow-700"
+                                                        : "bg-red-100 text-red-700"
                                                 }`}
                                         >
                                             {order.status}
@@ -488,11 +476,11 @@ export default function OrdersPage() {
                     </Table>
                 </TableContainer>
                 <ConfirmDialog
-                  open={confirmState.open}
-                  title={confirmState.title}
-                  message={confirmState.message}
-                  onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
-                  onConfirm={confirmState.onConfirm}
+                    open={confirmState.open}
+                    title={confirmState.title}
+                    message={confirmState.message}
+                    onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
+                    onConfirm={confirmState.onConfirm}
                 />
 
                 {/* Empty State */}

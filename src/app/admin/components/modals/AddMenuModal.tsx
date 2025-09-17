@@ -22,7 +22,6 @@ type MenuCup = {
   price: string;
 };
 
-// Prisma enum-compatible menu types
 const menuTypes = [
   { value: "COFFEE", label: "Coffee" },
   { value: "NON_COFFEE", label: "Non-Coffee" },
@@ -136,11 +135,10 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
 
   const handleSubmit = async () => {
     try {
-      // Build payload to match backend MenuInput
       const payload = {
         name,
         image: imagePreview || "",
-        type: menuType as "COFFEE" | "NON_COFFEE" | "MEAL" | "ADDON", // FIX: send exact enum value
+        type: menuType as "COFFEE" | "NON_COFFEE" | "MEAL" | "ADDON",
         status,
         category,
         sizes:
@@ -224,7 +222,7 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
           </FormField>
         </div>
 
-        {/* Price/Sizes & Status */}
+        {/* Price/Sizes and Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
           <div>
             {menuType === "ADDON" ? (
@@ -276,7 +274,7 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
           </div>
         </div>
 
-        {/* Cups & Ingredients Sections (hidden for ADDON) */}
+        {/* Cups adn Ingredients Sections (hidden sa ADDON) */}
         {menuType !== "ADDON" &&
           sizesList.map(size => {
             if (!sizes[size]) return null;

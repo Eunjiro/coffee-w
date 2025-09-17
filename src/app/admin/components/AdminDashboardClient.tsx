@@ -1,10 +1,8 @@
 "use client";
 
 import useSWR from "swr";
-import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
-  PhilippinePeso,
   ShoppingCart,
   Star,
   AlertTriangle,

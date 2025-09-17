@@ -14,7 +14,7 @@ export interface MenuItem {
   id: number;
   name: string;
   description?: string;
-  type: string; // e.g., COFFEE, NON_COFFEE, MEAL, ADDON
+  type: string; 
   status: "Available" | "Unavailable";
   image?: string;
   sizes: Size[];
@@ -23,7 +23,7 @@ export interface MenuItem {
 
 export interface CartItem {
   id: number;
-  cartKey: string; // unique key for cart item
+  cartKey: string;
   name: string;
   image: string;
   price: number;

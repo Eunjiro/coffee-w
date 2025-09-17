@@ -1,7 +1,7 @@
-// MenuModal.tsx
+'use client';
+
 import React, { useState, useMemo, useEffect } from "react";
 import { Minus, Plus } from "lucide-react";
-// Remove mock data imports - will use real API data
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 
@@ -75,7 +75,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
         </div>
     ) : (
         <div className="flex justify-between items-center gap-4 w-full">
-            {/* Quantity Selector */}
+            {/* Quantity selector */}
             <div className="flex items-center gap-3">
                 <Button 
                     variant="ghost" 
@@ -122,7 +122,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
             <div className="space-y-6">
                 <p className="text-[#776B5D] text-sm capitalize">{item.type.replace("-", " ")}</p>
 
-                {/* Drink Size Options */}
+                {/* Drink size options */}
                 <div>
                     <h3 className="mb-3 font-semibold text-[#776B5D]">Size</h3>
                     <div className="flex gap-2">
@@ -156,7 +156,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
                     </div>
                 </div>
 
-                {/* Add-Ons Options */}
+                {/* Add-Ons options */}
                 {addonData.length > 0 && (
                     <div>
                         <h3 className="mb-3 font-semibold text-[#776B5D]">Add-Ons</h3>

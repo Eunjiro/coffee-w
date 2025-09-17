@@ -25,7 +25,6 @@ export async function POST(req: NextRequest) {
         category: category || '',
         basePrice: parseFloat(price),
         type: "ADDON", // Set the type to "ADDON"
-        // Do not add unitCost here because it's not part of the Prisma model
         orderitems: {
           create: [
             {

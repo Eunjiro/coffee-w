@@ -4,7 +4,7 @@ import type { menu_type, menu_status } from "@prisma/client";
 
 interface IngredientInput {
   ingredientId: number;
-  quantity: number; // frontend uses quantity
+  quantity: number;
 }
 
 interface SizeInput {

@@ -1,4 +1,5 @@
-// EditMenuModal.tsx
+'use client';
+
 import React, { useState, useEffect, useRef } from "react";
 import { UploadCloud, Plus } from "lucide-react";
 import Modal from "../ui/Modal";
@@ -111,10 +112,6 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({ open, item, cups, ingredi
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setForm(prev => prev ? { ...prev, [name]: value } : null);
-    };
-
-    const handleSizeToggle = (size: "small" | "medium" | "large") => {
-        setSizesState(prev => ({ ...prev, [size]: !prev[size] }));
     };
 
     const handleCupChange = (size: "small" | "medium" | "large", field: "cupId" | "price", value: string) => {
@@ -232,7 +229,7 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({ open, item, cups, ingredi
                     <input id="edit-image-upload" type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
                 </div>
 
-                {/* Name & Type */}
+                {/* Name and Type */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField label="Name" required>
                         <Input
@@ -268,7 +265,7 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({ open, item, cups, ingredi
                     ))}
                 </Section>
 
-                {/* Sizes & Cups / Addon Price */}
+                {/* Sizes at Cups / addon price */}
                 {form.type === 'ADDON' ? (
                     <Section title="Price">
                         <Input type="number" value={addonPrice} onChange={e => setAddonPrice(e.target.value)} placeholder="Price" />

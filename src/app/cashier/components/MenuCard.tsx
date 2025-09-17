@@ -6,7 +6,7 @@ import { MenuItem } from "@/types/types";
 interface MenuCardProps extends MenuItem {}
 
 export default function MenuCard({ name, image, type, status, sizes }: MenuCardProps) {
-    const fallbackImage = "/placeholder.svg"; // add a placeholder image in public/
+    const fallbackImage = "/placeholder.svg";
 
     return (
         <div className="w-[213px] h-[377px] bg-white rounded-xl shadow-md p-2 flex flex-col cursor-pointer">

@@ -33,7 +33,7 @@ export async function GET() {
       }),
       prisma.cups.findMany({
         include: {
-          sizes: true, // available via "CupSizes" relation; no stock columns though
+          sizes: true, 
         },
         orderBy: { id: "asc" },
       }),
@@ -61,7 +61,6 @@ export async function GET() {
       };
     });
 
-    // Map cups into "disposable" category (no stock fields in schema)
     const cupItems = cups.map((cup) => ({
       id: `cup-${cup.id.toString().padStart(3, "0")}`,
       type: "cup" as const,
@@ -86,7 +85,6 @@ export async function GET() {
   }
 }
 
-// ---- PATCH /api/admin/inventory
 // Body: { id: "ing-001" | "cup-001", delta: number }
 export async function PATCH(req: NextRequest) {
   try {

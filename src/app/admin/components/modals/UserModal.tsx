@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Mail, Phone, Calendar, Shield } from 'lucide-react';
-// Define available roles inline to avoid mock dependency
 const userRoles = [
   { value: 'admin', label: 'Admin' },
   { value: 'cashier', label: 'Cashier' },
@@ -17,7 +16,7 @@ type EditingUser = {
   role: 'admin' | 'cashier';
   status: 'active' | 'inactive';
   phone?: string;
-  hireDate: string; // ISO string
+  hireDate: string;
 };
 
 interface UserModalProps {
@@ -32,7 +31,7 @@ interface UserModalProps {
       role: 'admin' | 'cashier';
       status: 'active' | 'inactive';
       phone?: string;
-      hireDate?: string; // yyyy-mm-dd
+      hireDate?: string;
     }) => void;
     editingUser?: EditingUser | null;
 }

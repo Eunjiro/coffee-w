@@ -1,6 +1,5 @@
 import NextAuth, { DefaultSession, DefaultUser } from "next-auth";
 
-// Extend the default User
 declare module "next-auth" {
   interface User extends DefaultUser {
     id: string;

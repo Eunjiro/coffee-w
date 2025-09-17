@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ClipboardList, Plus } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 
 const filters = [
   { id: "all", label: "All Items", activeColor: "#776B5D" },
@@ -17,7 +17,7 @@ interface FilterBarProps {
   onAddCategory?: () => void;
 }
 
-export default function FilterBar({ active, onChange, onAddCategory }: FilterBarProps) {
+export default function FilterBar({ active, onChange }: FilterBarProps) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {

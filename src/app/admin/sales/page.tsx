@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { TrendingUp, DollarSign, ShoppingCart, Download, RefreshCw } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
@@ -207,7 +207,6 @@ const Sales: React.FC = () => {
   };
 
   const handleExport = () => {
-    // TODO: Implement export functionality
     console.log('Export functionality not yet implemented');
   };
 

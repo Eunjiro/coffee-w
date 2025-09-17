@@ -2,14 +2,11 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Banknote, Smartphone, ArrowLeft, CheckCircle, User, Search, Receipt, Star } from "lucide-react";
+import { Banknote, Smartphone, ArrowLeft, CheckCircle, User, Receipt, Star } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-// Remove mock data imports - we'll use real API endpoints
-// import JoinLoyaltyModal from "../components/modals/JoinLoyaltyModal";
-// import SelectRewardsModal from "../components/modals/SelectRewardsModal";
 
 interface OrderItem {
     id: number;
@@ -60,8 +57,6 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
     const [selectedLoyaltyMember, setSelectedLoyaltyMember] = useState<any | null>(null);
     const [loyaltySearchResults, setLoyaltySearchResults] = useState<any[]>([]);
     const [selectedRewards, setSelectedRewards] = useState<any[]>([]);
-    const [showRewardsModal, setShowRewardsModal] = useState(false);
-    const [showJoinLoyaltyModal, setShowJoinLoyaltyModal] = useState(false);
     const [addonData, setAddonData] = useState<any[]>([]);
 
     // Load cart data from sessionStorage on component mount
@@ -78,12 +73,12 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
                 if (cartData) {
                     const parsedCart = JSON.parse(cartData);
                     console.log("Raw cart data from sessionStorage:", parsedCart);
-                    
+
                     // Convert CartItem to OrderItem format
                     const orderItems = parsedCart.map((item: any) => {
                         // Get the size price from the selectedSize
                         const sizePrice = item.selectedSize?.price || 0;
-                        
+
                         return {
                             id: item.id,
                             name: item.name,
@@ -203,28 +198,6 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
         setLoyaltySearchResults([]);
     };
 
-    const handleRemoveLoyaltyMember = () => {
-        setSelectedLoyaltyMember(null);
-        setLoyaltySearch("");
-        setSelectedRewards([]); // Clear rewards when removing loyalty member
-    };
-
-    const handleSelectReward = (reward: any) => {
-        setSelectedRewards((prev) => [...prev, reward]);
-    };
-
-    const handleRemoveReward = (rewardId: string) => {
-        setSelectedRewards((prev) => prev.filter((reward) => reward.id !== rewardId));
-    };
-
-    const handleJoinLoyalty = (customerData: { name: string; phone: string; email: string }) => {
-        // In a real application, this would make an API call to create a new loyalty member
-        // For now, we'll just show an alert and set the customer name
-        toast.success(`Welcome to our loyalty program, ${customerData.name}! You'll receive 100 welcome points.`);
-        setCustomerName(customerData.name);
-        // You could also add the new member to the loyalty data here
-    };
-
     const handleBack = () => {
         if (propOnBack) {
             propOnBack();
@@ -239,10 +212,7 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
             return;
         }
 
-        // Note: Addon data will be loaded asynchronously, so we'll handle missing addons gracefully
-
         try {
-            // Get the original cart data from sessionStorage to maintain proper structure
             const cartData = sessionStorage.getItem('cartItems');
             if (!cartData) {
                 toast.error("Cart data not found. Please try again.");
@@ -252,7 +222,6 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
             const originalCartItems = JSON.parse(cartData);
             console.log("Original cart items:", originalCartItems);
 
-            // Create order via API using the original cart structure
             const orderData = {
                 cartItems: originalCartItems.map((item: any) => {
                     // Validate the cart item
@@ -456,7 +425,7 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
                             <User className="mr-2 w-5 h-5" />
                             Cashier Information
                         </h3>
-                        <Button variant="secondary" onClick={() => toast.info("Join Loyalty Program feature coming soon") }>
+                        <Button variant="secondary" onClick={() => toast.info("Join Loyalty Program feature coming soon")}>
                             <Star className="mr-2 w-4 h-4" />
                             Join Loyalty Program
                         </Button>
@@ -544,10 +513,10 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
                                         onClick={() => !method.disabled && handlePaymentMethodChange(method.value)}
                                         disabled={method.disabled}
                                         className={`w-full flex items-center p-3 rounded-lg border transition-colors ${method.disabled
-                                                ? "border-gray-300 bg-gray-100 cursor-not-allowed opacity-50"
-                                                : paymentMethod === method.value
-                                                    ? "border-[#776B5D] bg-[#776B5D]/10"
-                                                    : "border-[#B0A695] hover:border-[#776B5D]/50"
+                                            ? "border-gray-300 bg-gray-100 cursor-not-allowed opacity-50"
+                                            : paymentMethod === method.value
+                                                ? "border-[#776B5D] bg-[#776B5D]/10"
+                                                : "border-[#B0A695] hover:border-[#776B5D]/50"
                                             }`}
                                     >
                                         <Icon className={`w-5 h-5 mr-3 ${method.disabled ? "text-gray-400" : "text-[#776B5D]"}`} />
@@ -618,7 +587,6 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
                 </div>
             </div>
 
-            {/* Modals temporarily disabled - would need to be implemented */}
         </div>
     );
 };

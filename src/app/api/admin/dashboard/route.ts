@@ -1,19 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// Type for best seller item
-type BestSeller = {
-  menuId: number;
-  _sum: { quantity: number };
-};
-
-type RecentOrder = {
-  id: number;
-  total: number;
-  createdAt: Date;
-  users?: { name: string };
-};
-
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const filter = searchParams.get("filter") || "today";

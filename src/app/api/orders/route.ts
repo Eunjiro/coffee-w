@@ -23,16 +23,22 @@ export async function POST(req: Request) {
     }
 
     if (!paymentMethod) {
-      return NextResponse.json({ error: "Payment method is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Payment method is required" },
+        { status: 400 }
+      );
     }
 
     // Validate cart items
     for (const item of cartItems) {
       if (!item.id || !item.quantity || !item.price) {
-        return NextResponse.json({ 
-          error: "Invalid cart item", 
-          details: `Missing required fields for item: ${JSON.stringify(item)}` 
-        }, { status: 400 });
+        return NextResponse.json(
+          {
+            error: "Invalid cart item",
+            details: `Missing required fields for item: ${JSON.stringify(item)}`,
+          },
+          { status: 400 }
+        );
       }
     }
 
@@ -51,8 +57,8 @@ export async function POST(req: Request) {
     const order = await prisma.orders.create({
       data: {
         userId,
-        baseTotal: baseTotal,
-        total: total,
+        baseTotal,
+        total,
         status: "PENDING",
         paymentMethod,
         orderitems: {
@@ -63,7 +69,10 @@ export async function POST(req: Request) {
             ...(item.selectedAddons?.length > 0 && {
               orderitemaddons: {
                 create: item.selectedAddons
-                  .filter((addon: any) => addon.id && addon.id > 0 && addon.price > 0)
+                  .filter(
+                    (addon: any) =>
+                      addon.id && addon.id > 0 && addon.price > 0
+                  )
                   .map((addon: any) => ({
                     addonId: addon.id,
                     price: addon.price,
@@ -80,19 +89,18 @@ export async function POST(req: Request) {
       },
     });
 
-    // Note: Inventory reduction is now handled only when order is marked as PAID
-    // This prevents double reduction when order is created and then paid
-
+    // Inventory reduction handled only when order is PAID
     return NextResponse.json({ success: true, orderRef: order.id });
   } catch (err) {
     console.error("Order creation error:", err);
-    console.error("Error details:", JSON.stringify(err, null, 2));
-    console.error("Request data:", { cartItems, paymentMethod, appliedReward });
-    return NextResponse.json({ 
-      error: "Failed to create order", 
-      details: err.message,
-      type: err.constructor.name 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Failed to create order",
+        details: err instanceof Error ? err.message : String(err),
+        type: err instanceof Error ? err.constructor.name : "UnknownError",
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -107,9 +115,7 @@ export async function GET() {
             menu: true,
             sizes: true,
             orderitemaddons: {
-              include: {
-                menu: true,
-              },
+              include: { menu: true },
             },
           },
         },
@@ -120,7 +126,13 @@ export async function GET() {
     return NextResponse.json({ success: true, orders });
   } catch (err) {
     console.error("Fetching orders error:", err);
-    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Failed to fetch orders",
+        details: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -129,7 +141,12 @@ export async function POST_COMPLETE(req: Request) {
   try {
     const { orderId } = await req.json();
 
-    if (!orderId) return NextResponse.json({ success: false, error: "Missing orderId" }, { status: 400 });
+    if (!orderId) {
+      return NextResponse.json(
+        { success: false, error: "Missing orderId" },
+        { status: 400 }
+      );
+    }
 
     await prisma.orders.update({
       where: { id: orderId },
@@ -138,8 +155,15 @@ export async function POST_COMPLETE(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ success: false, error: "Something went wrong" }, { status: 500 });
+    console.error("Failed to mark order as completed:", err);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Something went wrong",
+        details: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -149,7 +173,10 @@ export async function POST_PAY(req: Request) {
     const { orderId } = await req.json();
 
     if (!orderId) {
-      return NextResponse.json({ error: "Order ID required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Order ID required" },
+        { status: 400 }
+      );
     }
 
     const order = await prisma.orders.update({
@@ -157,10 +184,7 @@ export async function POST_PAY(req: Request) {
       data: { status: "PAID", paidAt: new Date() },
       include: {
         orderitems: {
-          include: {
-            menu: true,
-            orderitemaddons: true,
-          },
+          include: { menu: true, orderitemaddons: true },
         },
       },
     });
@@ -176,7 +200,9 @@ export async function POST_PAY(req: Request) {
         for (const ri of recipe.recipeingredients) {
           await prisma.ingredients.update({
             where: { id: ri.ingredientId },
-            data: { stock: { decrement: Number(ri.qtyNeeded) * item.quantity } },
+            data: {
+              stock: { decrement: Number(ri.qtyNeeded) * item.quantity },
+            },
           });
         }
       }
@@ -185,7 +211,13 @@ export async function POST_PAY(req: Request) {
     return NextResponse.json({ success: true, order });
   } catch (err) {
     console.error("Failed to mark order as paid:", err);
-    return NextResponse.json({ error: "Failed to mark order as paid" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Failed to mark order as paid",
+        details: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -195,7 +227,10 @@ export async function POST_CANCEL(req: Request) {
     const { orderId } = await req.json();
 
     if (!orderId) {
-      return NextResponse.json({ error: "Order ID required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Order ID required" },
+        { status: 400 }
+      );
     }
 
     await prisma.orders.update({
@@ -206,6 +241,12 @@ export async function POST_CANCEL(req: Request) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Failed to cancel order:", err);
-    return NextResponse.json({ error: "Failed to cancel order" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Failed to cancel order",
+        details: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 }
+    );
   }
 }

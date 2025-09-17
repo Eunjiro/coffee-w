@@ -41,7 +41,7 @@ interface Unit {
 }
 
 type InventoryRow = {
-  id: string; // "ing-001"
+  id: string;
   type: "ingredient";
   name: string;
   category: "disposable" | "liquid" | "solid" | "powder" | "syrup" | string;
@@ -81,14 +81,11 @@ export default function InventoryPage() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // UI state (matches your sample UI)
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [selectedProduct, setSelectedProduct] = useState("");
   const [currentStock, setCurrentStock] = useState("");
   const [inputStock, setInputStock] = useState("");
-
-  // dialogs
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Ingredient | null>(null);
@@ -292,7 +289,7 @@ export default function InventoryPage() {
     return null;
   }
 
-  // Status tags (like your sample)
+  // Status tags
   const statusTags = (
     <>
       <span className="flex items-center gap-1 bg-orange-100 px-3 py-2 border border-orange-300 rounded-lg font-medium text-orange-600">

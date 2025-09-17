@@ -4,8 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import AdminLayout from "../components/AdminLayout";
-import MenuModal from "@/app/cashier/components/MenuModal"; // use the cashier MenuModal for adding to cart
-// Removed CheckoutModal import - now using payment page
+import MenuModal from "@/app/cashier/components/MenuModal";
 import { MenuItem, CartItem } from "@/types/types";
 import { Star, ShoppingCart, Trash2, CreditCard, Clipboard } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
@@ -37,7 +36,6 @@ export default function PosPage() {
     [cart]
   );
 
-  // --- Session & role check ---
   useEffect(() => {
     if (status === "authenticated" && session?.user.role !== "ADMIN") {
       window.location.href = "/unauthorized";
@@ -46,7 +44,6 @@ export default function PosPage() {
     }
   }, [status, session]);
 
-  // --- Fetch menu ---
   useEffect(() => {
     fetch("/api/cashier/menu")
       .then((res) => res.json())
@@ -67,7 +64,6 @@ export default function PosPage() {
     setFilteredMenu(filtered);
   }, [activeFilter, searchTerm, menu]);
 
-  // --- Cart handlers ---
   const addToCart = (cartItem: CartItem) => {
     setCart((prev) => {
       const existing = prev.find((c) => c.cartKey === cartItem.cartKey);
@@ -168,7 +164,7 @@ export default function PosPage() {
                       onClick={() => setSelectedItem(item)}
                     >
                       <img
-                        src={item.image || "/placeholder.png"}
+                        src={item.image || "/placeholder.svg"}
                         alt={item.name}
                         className="mb-3 rounded-lg w-full object-cover aspect-square"
                       />
@@ -212,7 +208,7 @@ export default function PosPage() {
                     className="flex bg-[#F3EEEA] mb-3 p-4 border border-[#B0A695] rounded-2xl w-full h-fit"
                   >
                     <img
-                      src={item.image || "/placeholder.png"}
+                      src={item.image || "/placeholder.svg"}
                       alt={item.name}
                       className="flex-shrink-0 mr-4 rounded-lg w-16 h-16 object-cover"
                     />
@@ -277,7 +273,6 @@ export default function PosPage() {
             />
           )}
 
-          {/* Checkout Modal removed - now using payment page */}
         </div>
     </AdminLayout>
   );

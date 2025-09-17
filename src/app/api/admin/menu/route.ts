@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { menu_type, menu_status } from "@prisma/client";
 
-// ---------- TYPES ----------
-
 interface IngredientInput {
   ingredientId: number;
   qtyNeeded: number;
@@ -33,7 +31,6 @@ interface IngredientsBySize {
   large: any[];
 }
 
-// ---------- GET ALL MENUS ----------
 export async function GET() {
   try {
     const menus = await prisma.menu.findMany({
@@ -104,7 +101,6 @@ export async function GET() {
   }
 }
 
-// ---------- CREATE NEW MENU ----------
 export async function POST(req: Request) {
   try {
     const data: MenuInput = await req.json();

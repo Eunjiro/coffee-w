@@ -94,7 +94,6 @@ export default function IngredientsPage() {
             <DialogHeader>
               <DialogTitle>Add New Ingredient</DialogTitle>
             </DialogHeader>
-            {/* TODO: Add your form for ingredient creation */}
           </DialogContent>
         </Dialog>
       </div>

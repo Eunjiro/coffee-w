@@ -137,25 +137,23 @@ export default function CheckoutModal({
         });
       }
 
-      // Add points (calculated from total after reward discount)
-      // Add points (calculated from total after reward discount)
-if (joinLoyalty) {
-  await fetch(`/api/loyaltyProxy/addPoints`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      orderRef,
-      customerPhone,
-      totalAmount: totalAfterReward, // use the final total after reward
-      items: cartItems.map(item => ({
-        menuId: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-      })),
-    }),
-  });
-}
+      if (joinLoyalty) {
+        await fetch(`/api/loyaltyProxy/addPoints`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderRef,
+            customerPhone,
+            totalAmount: totalAfterReward, // use the final total after reward
+            items: cartItems.map(item => ({
+              menuId: item.id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+            })),
+          }),
+        });
+      }
 
 
       (window as any).toast?.success?.("Order placed successfully!");

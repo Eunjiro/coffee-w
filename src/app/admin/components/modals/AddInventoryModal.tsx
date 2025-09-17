@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, User, Hash, DollarSign, AlertTriangle, FileText, PhilippinePeso } from 'lucide-react';
+import { Package, User, Hash, AlertTriangle, PhilippinePeso } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import FormField, { Input, Select, Textarea } from '../ui/FormField';
@@ -7,7 +7,7 @@ import FormField, { Input, Select, Textarea } from '../ui/FormField';
 interface AddInventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: () => void; // Changed to just refresh callback
+  onSave: () => void;
   editingItem?: Ingredient | null;
 }
 
@@ -65,7 +65,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
 
   const categories = ['liquid', 'solid', 'powder', 'syrup', 'disposable', 'dairy', 'other'];
 
-  // Load suppliers and units when modal opens
+  // load suppliers and units when modal opens
   useEffect(() => {
     if (isOpen) {
       const loadData = async () => {
@@ -188,7 +188,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
       newErrors.threshold = 'Reorder level must be a valid number';
     }
 
-    // Optional fields validation
+    // optional fields validation shit
     if (formData.packagePrice && (isNaN(Number(formData.packagePrice)) || Number(formData.packagePrice) < 0)) {
       newErrors.packagePrice = 'Package price must be a valid number';
     }
@@ -265,7 +265,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
       const result = await response.json();
       console.log('API success:', result);
       
-      onSave(); // Refresh the parent component
+      onSave();
       onClose();
     } catch (error) {
       console.error('Error saving ingredient:', error);
@@ -275,7 +275,6 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
     }
   };
 
-  // Note: submit button must be inside the <form>, so we render actions inside the form instead of Modal footer
   const footer = undefined;
 
   console.log('Modal render - isOpen:', isOpen);
