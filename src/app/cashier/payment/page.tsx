@@ -76,21 +76,28 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
                 const cartData = sessionStorage.getItem('cartItems');
                 if (cartData) {
                     const parsedCart = JSON.parse(cartData);
+                    console.log("Raw cart data from sessionStorage:", parsedCart);
+                    
                     // Convert CartItem to OrderItem format
-                    const orderItems = parsedCart.map((item: any) => ({
-                        id: item.id,
-                        name: item.name,
-                        image: item.image,
-                        selectedSize: item.selectedSize?.label?.toLowerCase() || "medium",
-                        small_price: 0, // Will be set based on selectedSize
-                        medium_price: item.price, // Use the cart item price as base
-                        large_price: 0, // Will be set based on selectedSize
-                        quantity: item.quantity,
-                        selectedAddons: item.selectedAddons?.map((addon: any) => addon.name) || [],
-                        orderId: item.cartKey
-                    }));
+                    const orderItems = parsedCart.map((item: any) => {
+                        // Get the size price from the selectedSize
+                        const sizePrice = item.selectedSize?.price || 0;
+                        
+                        return {
+                            id: item.id,
+                            name: item.name,
+                            image: item.image,
+                            selectedSize: item.selectedSize?.label?.toLowerCase() || "medium",
+                            small_price: item.selectedSize?.label?.toLowerCase() === "small" ? sizePrice : 0,
+                            medium_price: item.selectedSize?.label?.toLowerCase() === "medium" ? sizePrice : sizePrice, // Default to sizePrice if no specific size
+                            large_price: item.selectedSize?.label?.toLowerCase() === "large" ? sizePrice : 0,
+                            quantity: item.quantity,
+                            selectedAddons: item.selectedAddons?.map((addon: any) => addon.name) || [],
+                            orderId: item.cartKey
+                        };
+                    });
                     setOrderItems(orderItems);
-                    console.log("Loaded order items:", orderItems);
+                    console.log("Converted order items:", orderItems);
                 }
                 setIsLoading(false);
             } catch (error) {
@@ -233,23 +240,39 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
         // Note: Addon data will be loaded asynchronously, so we'll handle missing addons gracefully
 
         try {
-            // Create order via API
+            // Get the original cart data from sessionStorage to maintain proper structure
+            const cartData = sessionStorage.getItem('cartItems');
+            if (!cartData) {
+                alert("Cart data not found. Please try again.");
+                return;
+            }
+
+            const originalCartItems = JSON.parse(cartData);
+            console.log("Original cart items:", originalCartItems);
+
+            // Create order via API using the original cart structure
             const orderData = {
-                cartItems: orderItems.map(item => ({
-                    id: item.id,
-                    quantity: item.quantity,
-                    price: item.selectedSize === "small" ? item.small_price :
-                        item.selectedSize === "large" ? item.large_price : item.medium_price,
-                    selectedSize: null, // No specific size ID for now
-                    selectedAddons: (item.selectedAddons || []).map(addonName => {
-                        const addon = addonData.find(a => a.name === addonName);
-                        console.log(`Looking for addon "${addonName}":`, addon);
-                        return {
-                            id: addon?.id || 0,
-                            price: addon?.basePrice || 0
-                        };
-                    })
-                })),
+                cartItems: originalCartItems.map((item: any) => {
+                    // Validate the cart item
+                    if (!item.id || !item.quantity || !item.price) {
+                        console.error('Invalid cart item:', item);
+                        throw new Error(`Invalid cart item: ${item.name || 'Unknown item'}`);
+                    }
+
+                    // Validate price
+                    if (item.price <= 0) {
+                        console.error('Invalid price for item:', item);
+                        throw new Error(`Invalid price for item: ${item.name}`);
+                    }
+
+                    return {
+                        id: item.id,
+                        quantity: item.quantity,
+                        price: item.price,
+                        selectedSize: item.selectedSize || null,
+                        selectedAddons: (item.selectedAddons || []).filter((addon: any) => addon.id && addon.price > 0)
+                    };
+                }),
                 paymentMethod: paymentMethod.toUpperCase(),
                 appliedReward: selectedRewards.length > 0 ? selectedRewards[0] : null,
             };

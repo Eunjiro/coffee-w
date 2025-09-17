@@ -180,9 +180,13 @@ model units {
 model users {
   id        Int        @id @default(autoincrement()) @db.UnsignedInt
   email     String     @unique(map: "email")
+  username  String     @unique(map: "uq_users_username") @db.VarChar(64)
   password  String     @db.VarChar(255)
   name      String
   role      users_role @default(BARISTA)
+  status    users_status @default(ACTIVE)
+  phone     String?    @db.VarChar(32)
+  hireDate  DateTime?  @db.Date
   createdAt DateTime   @default(now()) @db.Timestamp(0)
   updatedAt DateTime   @default(now()) @db.Timestamp(0)
   orders    orders[]
@@ -220,4 +224,9 @@ enum users_role {
   ADMIN
   CASHIER
   BARISTA
+}
+
+enum users_status {
+  ACTIVE
+  INACTIVE
 }

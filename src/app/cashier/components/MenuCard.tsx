@@ -6,19 +6,30 @@ import { MenuItem } from "@/types/types";
 interface MenuCardProps extends MenuItem {}
 
 export default function MenuCard({ name, image, type, status, sizes }: MenuCardProps) {
-    const fallbackImage = "/placeholder.png"; // add a placeholder image in public/
+    const fallbackImage = "/placeholder.svg"; // add a placeholder image in public/
 
     return (
         <div className="w-[213px] h-[377px] bg-white rounded-xl shadow-md p-2 flex flex-col cursor-pointer">
             {/* Image */}
             <div className="w-[197px] h-[197px] bg-[#F3EEEA] rounded-lg shadow flex items-center justify-center overflow-hidden mx-auto">
-                <Image
-                    src={image || fallbackImage}
-                    alt={name}
-                    width={197}
-                    height={197}
-                    className="w-full h-full object-cover rounded-lg"
-                />
+                {image ? (
+                    <Image
+                        src={image}
+                        alt={name}
+                        width={197}
+                        height={197}
+                        className="w-full h-full object-cover rounded-lg"
+                        onError={(e) => {
+                            // Fallback to placeholder if image fails to load
+                            const target = e.target as HTMLImageElement;
+                            target.src = fallbackImage;
+                        }}
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[#776B5D]/50 text-sm">
+                        No Image
+                    </div>
+                )}
             </div>
 
             {/* Info */}

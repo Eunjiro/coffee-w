@@ -29,19 +29,19 @@ export async function GET(req: Request) {
 
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Total sales
+  // Total sales - count both PAID and COMPLETED orders
   const [salesToday, salesWeek, salesMonth] = await Promise.all([
     prisma.orders.aggregate({
       _sum: { total: true },
-      where: { status: "PAID", createdAt: { gte: startOfDay } },
+      where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: startOfDay } },
     }),
     prisma.orders.aggregate({
       _sum: { total: true },
-      where: { status: "PAID", createdAt: { gte: startOfWeek } },
+      where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: startOfWeek } },
     }),
     prisma.orders.aggregate({
       _sum: { total: true },
-      where: { status: "PAID", createdAt: { gte: startOfMonth } },
+      where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: startOfMonth } },
     }),
   ]);
 
@@ -54,20 +54,57 @@ export async function GET(req: Request) {
 
   // Best sellers helper
   const getBestSellers = async (start: Date) => {
-    const items = await prisma.orderitems.groupBy({
-      by: ["menuId"],
-      where: { createdAt: { gte: start } },
-      _sum: { quantity: true },
-      orderBy: { _sum: { quantity: "desc" } },
-      take: 3,
+    // Get orders with their items to calculate revenue
+    const orders = await prisma.orders.findMany({
+      where: { 
+        createdAt: { gte: start },
+        status: { in: ["PAID", "COMPLETED"] }
+      },
+      include: {
+        orderitems: {
+          include: {
+            menu: true,
+            sizes: true,
+            orderitemaddons: {
+              include: {
+                menu: true
+              }
+            }
+          }
+        }
+      }
     });
 
-    return Promise.all(
-      items.map(async (item) => {
-        const menu = await prisma.menu.findUnique({ where: { id: item.menuId } });
-        return { id: item.menuId, name: menu?.name, sold: item._sum?.quantity ?? 0 };
-      })
-    );
+    // Group by menuId and calculate totals
+    const itemMap = new Map<number, { name: string; sold: number; revenue: number }>();
+    
+    orders.forEach(order => {
+      const orderTotal = Number(order.total);
+      const totalQuantity = order.orderitems.reduce((sum, item) => sum + item.quantity, 0);
+      
+      order.orderitems.forEach(item => {
+        // Calculate proportional revenue based on quantity
+        const proportionalRevenue = totalQuantity > 0 ? (orderTotal * item.quantity) / totalQuantity : 0;
+        
+        if (itemMap.has(item.menuId)) {
+          const existing = itemMap.get(item.menuId)!;
+          existing.sold += item.quantity;
+          existing.revenue += proportionalRevenue;
+        } else {
+          itemMap.set(item.menuId, {
+            name: item.menu.name,
+            sold: item.quantity,
+            revenue: proportionalRevenue
+          });
+        }
+      });
+    });
+
+    // Convert to array and sort by quantity sold
+    return Array.from(itemMap.entries())
+      .map(([id, data]) => ({ id, ...data }))
+      .sort((a, b) => b.sold - a.sold)
+      .slice(0, 3);
   };
 
 
@@ -86,7 +123,7 @@ export async function GET(req: Request) {
 
   // Recent orders
   const recentOrdersRaw = await prisma.orders.findMany({
-    where: { status: "PAID" },
+    where: { status: { in: ["PAID", "COMPLETED"] } },
     include: { 
       users: true,
       orderitems: {
@@ -131,7 +168,7 @@ export async function GET(req: Request) {
 
     const salesForDay = await prisma.orders.aggregate({
       _sum: { total: true },
-      where: { status: "PAID", createdAt: { gte: start, lte: end } },
+      where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: start, lte: end } },
     });
 
     salesOverview.push({

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import CashierLayout from "../components/CashierLayout";
-import MenuModal from "../components/OrderModal"; // reuse your modal for adding to cart
+import MenuModal from "../components/MenuModal"; // use the new MenuModal for adding to cart
 // Removed CheckoutModal import - now using payment page
 import { MenuItem, CartItem } from "@/types/types";
 import { Star, ShoppingCart, Trash2, CreditCard, Clipboard } from "lucide-react";
@@ -272,8 +272,9 @@ export default function PosPage() {
           {selectedItem && (
             <MenuModal
               item={selectedItem}
+              open={!!selectedItem}
               onClose={() => setSelectedItem(null)}
-              onAddToCart={addToCart}
+              onAddToOrder={addToCart}
             />
           )}
 

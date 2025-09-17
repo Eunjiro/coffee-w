@@ -33,7 +33,7 @@ export default function CashierSidenav({ open, setOpen }: { open: boolean; setOp
             <Link href="/cashier/pos" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]">
               <ShoppingCart /> POS
             </Link>
-            <Link href="/cashier" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]">
+            <Link href="/cashier/dashboard" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]">
               <LayoutDashboard /> Dashboard
             </Link>
             <Link href="/cashier/orders" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#B0A695]">

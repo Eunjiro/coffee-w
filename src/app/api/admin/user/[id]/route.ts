@@ -14,8 +14,12 @@ export async function GET(
       select: {
         id: true,
         email: true,
+        username: true,
         name: true,
         role: true,
+        status: true,
+        phone: true,
+        hireDate: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -24,8 +28,19 @@ export async function GET(
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    const mapped = {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      name: user.name,
+      role: (user.role || "BARISTA").toLowerCase(),
+      status: (user.status || "ACTIVE").toLowerCase(),
+      phone: user.phone || "",
+      createdAt: user.createdAt.toISOString(),
+      hireDate: (user.hireDate || user.createdAt).toISOString(),
+    };
 
-    return NextResponse.json(user);
+    return NextResponse.json(mapped);
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
   }
@@ -39,10 +54,18 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { email, password, name, role } = body;
+    const { email, username, password, name, role, status, phone, hireDate } = body;
 
-    let updatedData: any = { email, name, role };
-    if (password) {
+    const updatedData: any = {
+      ...(email ? { email } : {}),
+      ...(username ? { username } : {}),
+      ...(name ? { name } : {}),
+      ...(role ? { role: role.toUpperCase() } : {}),
+      ...(status ? { status: status.toUpperCase() } : {}),
+      ...(phone !== undefined ? { phone: phone || null } : {}),
+      ...(hireDate !== undefined ? { hireDate: hireDate ? new Date(hireDate) : null } : {}),
+    };
+    if (password && password.length >= 4) {
       updatedData.password = await bcrypt.hash(password, 10);
     }
 
@@ -51,7 +74,18 @@ export async function PUT(
       data: updatedData,
     });
 
-    return NextResponse.json(updatedUser);
+    const mapped = {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      role: (updatedUser.role || "BARISTA").toLowerCase(),
+      status: "active",
+      phone: "",
+      createdAt: updatedUser.createdAt.toISOString(),
+      hireDate: updatedUser.createdAt.toISOString(),
+    };
+
+    return NextResponse.json(mapped);
   } catch (error) {
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
   }

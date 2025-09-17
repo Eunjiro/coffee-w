@@ -25,7 +25,7 @@ export async function GET() {
       id: menu.id,
       name: menu.name,
       type: menu.type as MenuItem["type"],
-      status: menu.status as MenuItem["status"],
+      status: menu.status === "AVAILABLE" ? "Available" : "Unavailable",
       image: menu.image || undefined,
       sizes: menu.sizes.map(size => ({
         id: size.id,

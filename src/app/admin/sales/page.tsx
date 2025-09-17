@@ -20,8 +20,8 @@ type Sale = {
   customerName: string;
   items: SaleItem[];
   total: number;
-  paymentMethod: 'cash' | 'gcash';
-  status: 'completed' | 'refunded' | 'cancelled';
+  paymentMethod: 'cash' | 'card' | 'gcash' | 'other';
+  status: 'completed' | 'refunded' | 'cancelled' | 'pending' | 'paid';
   timestamp: Date;
 };
 
@@ -64,27 +64,38 @@ const Sales: React.FC = () => {
   const [salesData, setSalesData] = useState<Sale[]>([]);
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'all'>('week');
   const [selectedStatus] = useState<'all' | 'completed' | 'refunded' | 'cancelled'>('completed');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch sales data from the API based on selected filters
   useEffect(() => {
     const fetchSalesData = async () => {
+      setLoading(true);
+      setError(null);
+      
       try {
         const res = await fetch(`/api/admin/sales/orders?dateRange=${dateRange}&status=${selectedStatus}`);
         const data = await res.json();
 
-        // Log the response data for debugging
-        console.log('API Response:', data);
-
-        // Check if data is an array
-        if (Array.isArray(data)) {
-          setSalesData(data);
+        if (res.ok) {
+          // Check if data is an array
+          if (Array.isArray(data)) {
+            setSalesData(data);
+          } else {
+            console.error('Sales data is not an array:', data);
+            setError('Invalid data format received from server');
+            setSalesData([]);
+          }
         } else {
-          console.error('Sales data is not an array:', data);
-          setSalesData([]); // Handle the case where the data is not in an array
+          setError(data.error || 'Failed to fetch sales data');
+          setSalesData([]);
         }
       } catch (error) {
         console.error('Error fetching sales data:', error);
-        setSalesData([]); // Handle the case of a failed API call
+        setError('Network error: Failed to fetch sales data');
+        setSalesData([]);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -134,7 +145,10 @@ const Sales: React.FC = () => {
 
     // Revenue by hour
     const revenueByHour: RevenueByHour[] = Array.from({ length: 24 }, (_, hour) => {
-      const hourSales = completedSales.filter((sale) => sale.timestamp.getHours() === hour);
+      const hourSales = completedSales.filter((sale) => {
+        const timestamp = new Date(sale.timestamp);
+        return timestamp.getHours() === hour;
+      });
       return {
         hour: `${hour.toString().padStart(2, '0')}:00`,
         revenue: hourSales.reduce((sum: number, sale: Sale) => sum + sale.total, 0),
@@ -146,9 +160,10 @@ const Sales: React.FC = () => {
     const revenueByDay: RevenueByDay[] = Array.from({ length: 7 }, (_, i) => {
       const date = new Date();
       date.setDate(date.getDate() - (6 - i));
-      const daySales = completedSales.filter((sale) =>
-        sale.timestamp.toDateString() === date.toDateString()
-      );
+      const daySales = completedSales.filter((sale) => {
+        const timestamp = new Date(sale.timestamp);
+        return timestamp.toDateString() === date.toDateString();
+      });
       return {
         date: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
         revenue: daySales.reduce((sum: number, sale: Sale) => sum + sale.total, 0),
@@ -157,7 +172,7 @@ const Sales: React.FC = () => {
     });
 
     // Payment method breakdown
-    const paymentMethods: Array<'cash' | 'gcash'> = ['cash', 'gcash'];
+    const paymentMethods: Array<'cash' | 'card' | 'gcash' | 'other'> = ['cash', 'card', 'gcash', 'other'];
     const paymentMethodBreakdown: PaymentMethodBreakdown[] = paymentMethods.map((method) => {
       const methodSales = completedSales.filter((sale) => sale.paymentMethod === method);
       const revenue = methodSales.reduce((sum: number, sale: Sale) => sum + sale.total, 0);
@@ -185,16 +200,65 @@ const Sales: React.FC = () => {
   const formatCurrency = (amount: number) => `₱${amount.toLocaleString()}`;
   const formatNumber = (num: number) => num.toLocaleString();
 
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
+  const handleExport = () => {
+    // TODO: Implement export functionality
+    console.log('Export functionality not yet implemented');
+  };
+
   const actions = (
     <>
-      <Button variant="secondary" icon={Download}>
+      <Button variant="secondary" icon={Download} onClick={handleExport}>
         Export
       </Button>
-      <Button icon={RefreshCw}>
+      <Button icon={RefreshCw} onClick={handleRefresh}>
         Refresh
       </Button>
     </>
   );
+
+  // Loading state
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="bg-[#F3EEEA] p-8 h-full overflow-y-auto custom-scrollbar">
+          <PageHeader title="Sales Analytics" description="View detailed sales reports and analytics" actions={actions} />
+          <div className="flex items-center justify-center h-64">
+            <div className="flex flex-col items-center space-y-4">
+              <RefreshCw className="w-8 h-8 animate-spin text-[#776B5D]" />
+              <p className="text-[#776B5D]">Loading sales data...</p>
+            </div>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="bg-[#F3EEEA] p-8 h-full overflow-y-auto custom-scrollbar">
+          <PageHeader title="Sales Analytics" description="View detailed sales reports and analytics" actions={actions} />
+          <div className="flex items-center justify-center h-64">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="bg-red-100 p-4 rounded-full">
+                <RefreshCw className="w-8 h-8 text-red-600" />
+              </div>
+              <p className="text-red-600 font-medium">Error loading sales data</p>
+              <p className="text-[#776B5D]/70 text-sm text-center max-w-md">{error}</p>
+              <Button onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+            </div>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -304,24 +368,33 @@ const Sales: React.FC = () => {
       {/* Recent Sales Section */}
       <div className="bg-white shadow-sm p-6 rounded-xl">
         <h3 className="mb-4 font-semibold text-[#776B5D] text-lg">Recent Sales</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-[#B0A695]/20 border-b">
-                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Order ID</th>
-                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Customer</th>
-                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Items</th>
-                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Total</th>
-                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Payment</th>
-                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Status</th>
-                <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {salesData
-                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                .slice(0, 10)
-                .map((sale) => (
+        {salesData.length === 0 ? (
+          <div className="py-8 text-[#776B5D]/70 text-center">
+            No sales data available for the selected period.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-[#B0A695]/20 border-b">
+                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Order ID</th>
+                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Customer</th>
+                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Items</th>
+                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Total</th>
+                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Payment</th>
+                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Status</th>
+                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {salesData
+                  .sort((a, b) => {
+                    const dateA = new Date(a.timestamp);
+                    const dateB = new Date(b.timestamp);
+                    return dateB.getTime() - dateA.getTime();
+                  })
+                  .slice(0, 10)
+                  .map((sale) => (
                   <tr key={sale.id} className="hover:bg-[#F3EEEA]/50 border-[#B0A695]/10 border-b">
                     <td className="px-4 py-3 font-medium text-[#776B5D]">{sale.orderId}</td>
                     <td className="px-4 py-3 text-[#776B5D]">{sale.customerName}</td>
@@ -343,10 +416,15 @@ const Sales: React.FC = () => {
                     <td className="px-4 py-3">
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          sale.paymentMethod === 'cash' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                          sale.paymentMethod === 'cash' ? 'bg-green-100 text-green-700' : 
+                          sale.paymentMethod === 'card' ? 'bg-purple-100 text-purple-700' :
+                          sale.paymentMethod === 'gcash' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-700'
                         }`}
                       >
-                        {sale.paymentMethod === 'gcash' ? 'GCash' : 'Cash'}
+                        {sale.paymentMethod === 'gcash' ? 'GCash' : 
+                         sale.paymentMethod === 'card' ? 'Card' :
+                         sale.paymentMethod === 'other' ? 'Other' : 'Cash'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -354,8 +432,12 @@ const Sales: React.FC = () => {
                         className={`px-2 py-1 rounded-full text-xs font-medium ${
                           sale.status === 'completed'
                             ? 'bg-green-100 text-green-700'
-                            : sale.status === 'refunded'
+                            : sale.status === 'paid'
+                            ? 'bg-blue-100 text-blue-700'
+                            : sale.status === 'pending'
                             ? 'bg-yellow-100 text-yellow-700'
+                            : sale.status === 'refunded'
+                            ? 'bg-orange-100 text-orange-700'
                             : 'bg-red-100 text-red-700'
                         }`}
                       >
@@ -363,13 +445,14 @@ const Sales: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-[#776B5D]/70 text-sm">
-                      {format(sale.timestamp, 'MMM dd, HH:mm')}
+                      {format(new Date(sale.timestamp), 'MMM dd, HH:mm')}
                     </td>
                   </tr>
                 ))}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
     </AdminLayout>

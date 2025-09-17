@@ -7,7 +7,7 @@ import { Coffee, User, Lock } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -43,11 +43,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const res = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      });
+      const res = await signIn('credentials', { username, password, redirect: false });
 
       if (res?.error) {
         setError('Invalid credentials');
@@ -98,21 +94,21 @@ export default function LoginPage() {
 
         {/* Form */}
         <form onSubmit={handleLogin} className="flex flex-col gap-4 w-full px-2 sm:px-4">
-          {/* Email */}
+          {/* Username */}
           <div className="flex flex-col gap-2">
-            <label htmlFor="email" className="text-[14px] sm:text-[16px] text-[#776B5D]">
-              Email
+            <label htmlFor="username" className="text-[14px] sm:text-[16px] text-[#776B5D]">
+              Username
             </label>
             <div className="flex items-center gap-2 px-3 py-2 border border-[#B0A695] rounded-lg">
               <User className="w-5 h-5 text-[#776B5D]" />
               <input
-                id="email"
-                type="email"
+                id="username"
+                type="text"
                 required
-                placeholder="Ex: youremail@example.com"
+                placeholder="Enter your username"
                 className="flex-1 text-[14px] sm:text-[16px] text-[#776B5D] placeholder:text-[#776B5D] outline-none"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
               />
             </div>
           </div>

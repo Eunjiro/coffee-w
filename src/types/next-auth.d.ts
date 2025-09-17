@@ -7,6 +7,7 @@ declare module "next-auth" {
     role: "ADMIN" | "CASHIER" | "BARISTA";
     name: string;
     email: string;
+    username: string;
   }
 
   interface Session {
@@ -15,6 +16,7 @@ declare module "next-auth" {
       role: "ADMIN" | "CASHIER" | "BARISTA";
       name: string;
       email: string;
+      username: string;
     } & DefaultSession["user"];
   }
 }
@@ -25,5 +27,6 @@ declare module "next-auth/jwt" {
     role: "ADMIN" | "CASHIER" | "BARISTA";
     name: string;
     email: string;
+    username: string;
   }
 }

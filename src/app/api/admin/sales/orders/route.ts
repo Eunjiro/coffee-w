@@ -1,22 +1,50 @@
 import { NextResponse } from "next/server";
-import { PrismaClient, orders_status } from "@prisma/client";  // Import orders_status enum from Prisma
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
   const searchParams = new URL(request.url).searchParams;
   const dateRange = searchParams.get('dateRange') || 'week';
-  const status = searchParams.get('status') || 'completed'; // Default to 'completed'
-
-  // Cast status to the orders_status enum safely
-  const validStatus = orders_status[status.toUpperCase() as keyof typeof orders_status] || orders_status.COMPLETED;
+  const status = searchParams.get('status') || 'completed';
 
   try {
+    // Calculate date range
+    const now = new Date();
+    let startDate: Date;
+
+    switch (dateRange) {
+      case 'today':
+        startDate = new Date(now);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 1);
+        break;
+      case 'all':
+      default:
+        startDate = new Date(0); // All time
+        break;
+    }
+
+    // Determine status filter
+    let statusFilter: any = {};
+    if (status !== 'all') {
+      if (status === 'completed') {
+        statusFilter = { status: { in: ['PAID', 'COMPLETED'] } };
+      } else {
+        statusFilter = { status: status.toUpperCase() };
+      }
+    }
+
     const orders = await prisma.orders.findMany({
       where: {
-        status: validStatus, // Use the enum value here
+        ...statusFilter,
         createdAt: {
-          gte: new Date(), // Add proper date logic based on dateRange
+          gte: startDate,
         },
       },
       include: {
@@ -38,7 +66,23 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json(orders);
+    // Transform the data to match the expected format
+    const transformedOrders = orders.map(order => ({
+      id: order.id.toString(),
+      orderId: `#${order.id}`,
+      customerName: order.users.name,
+      items: order.orderitems.map(item => ({
+        name: item.menu.name,
+        quantity: item.quantity,
+        unitPrice: Number(item.sizes?.price || 0) + item.orderitemaddons.reduce((sum, addon) => sum + Number(addon.price), 0),
+      })),
+      total: Number(order.total),
+      paymentMethod: order.paymentMethod?.toLowerCase() || 'cash',
+      status: order.status.toLowerCase(),
+      timestamp: new Date(order.createdAt),
+    }));
+
+    return NextResponse.json(transformedOrders);
   } catch (error) {
     console.error("Failed to fetch orders:", error);
     return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });

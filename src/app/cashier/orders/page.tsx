@@ -197,7 +197,7 @@ export default function OrdersPage() {
                         <TableHeader>
                             <tr>
                                 <TableCell header>Order ID</TableCell>
-                                <TableCell header>Customer</TableCell>
+                                <TableCell header>Cashier</TableCell>
                                 <TableCell header>Items</TableCell>
                                 <TableCell header>Total</TableCell>
                                 <TableCell header>Payment</TableCell>
