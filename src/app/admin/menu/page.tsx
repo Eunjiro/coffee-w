@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import AdminLayout from "../components/AdminLayout";
 import AddMenuModal from "../components/modals/AddMenuModal";
-import AddAddonModal from "../components/modals/AddAddonModal";
 import AddCategoryModal from "../components/modals/AddCategoryModal";
 import EditMenuModal, { MenuItem as ModalMenuItem } from "../components/modals/EditMenuModal";
 import PageHeader from "../components/ui/PageHeader";
@@ -22,7 +21,6 @@ export default function AdminMenuPage() {
 
   const [menuModalOpen, setMenuModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [addonModalOpen, setAddonModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ModalMenuItem | null>(null);
 
@@ -108,7 +106,7 @@ export default function AdminMenuPage() {
     const payload = {
       name: updated.name,
       image: updated.image || "",
-      type: updated.type as any,
+      type: (String(updated.type || "").replace(/-/g, "_") as any),
       status: updated.status,
       category: undefined,
       sizes: ["small", "medium", "large"].flatMap((label) => {
@@ -118,8 +116,8 @@ export default function AdminMenuPage() {
           label: size.label.charAt(0).toUpperCase() + size.label.slice(1),
           price: Number(size.price) || 0,
           ingredients: (updated.ingredients as any)[label]?.map((i: any) => ({
-            ingredientId: i.ingredientId,
-            qtyNeeded: i.quantity,
+            ingredientId: Number(i.ingredientId),
+            quantity: Number(i.quantity),
           })) || [],
         }];
       }),
@@ -166,10 +164,7 @@ export default function AdminMenuPage() {
   const actions = (
     <>
       <Button onClick={() => setMenuModalOpen(true)} icon={Plus}>
-        Add Menu
-      </Button>
-      <Button onClick={() => setAddonModalOpen(true)} icon={Plus}>
-        Add Addons
+        Menu / Addon
       </Button>
       <Button onClick={() => setCategoryModalOpen(true)} icon={Plus}>
         Add Category
@@ -302,11 +297,6 @@ export default function AdminMenuPage() {
           open={menuModalOpen}
           onClose={() => setMenuModalOpen(false)}
           onNext={fetchMenu}
-        />
-        <AddAddonModal
-          open={addonModalOpen}
-          onClose={() => setAddonModalOpen(false)}
-          onConfirm={() => fetchMenu()}
         />
         <AddCategoryModal
           open={categoryModalOpen}

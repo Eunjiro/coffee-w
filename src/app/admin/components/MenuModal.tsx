@@ -59,8 +59,8 @@ export default function MenuModal({
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (!file.type.startsWith("image/")) return alert("Please select an image file");
-        if (file.size > 5 * 1024 * 1024) return alert("Max size 5MB");
+        if (!file.type.startsWith("image/")) return (window as any).toast?.error?.("Please select an image file");
+        if (file.size > 5 * 1024 * 1024) return (window as any).toast?.error?.("Max size 5MB");
 
         setIsUploading(true);
 

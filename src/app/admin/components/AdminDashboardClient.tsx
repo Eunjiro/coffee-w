@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import React, { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   PhilippinePeso,
   ShoppingCart,
@@ -34,6 +35,7 @@ const formatCurrency = (amount: number | string) => {
 
 export default function AdminDashboardClient() {
   const { data, isLoading } = useSWR("/api/admin/dashboard?filter=today", fetcher);
+  const router = useRouter();
 
   if (isLoading) {
     return (
@@ -109,7 +111,7 @@ export default function AdminDashboardClient() {
               </div>
               <div className="text-[#776B5D]/70 text-sm">This week {formatCurrency(totalRevenueWeek)}</div>
               <div className="text-[#776B5D]/70 text-sm">This month {formatCurrency(totalRevenueMonth)}</div>
-              <button className="font-medium text-[#776B5D] hover:text-[#776B5D]/80 text-sm">View all sales</button>
+              <button onClick={() => router.push('/admin/sales')} className="font-medium text-[#776B5D] hover:text-[#776B5D]/80 text-sm">View all sales</button>
             </div>
           </div>
 
@@ -127,7 +129,7 @@ export default function AdminDashboardClient() {
             <div className="space-y-2">
               <div className="text-[#776B5D]/70 text-sm">This week {totalOrdersWeek}</div>
               <div className="text-[#776B5D]/70 text-sm">This month {totalOrdersMonth}</div>
-              <button className="font-medium text-[#776B5D] hover:text-[#776B5D]/80 text-sm">View all orders</button>
+              <button onClick={() => router.push('/admin/orders')} className="font-medium text-[#776B5D] hover:text-[#776B5D]/80 text-sm">View all orders</button>
             </div>
           </div>
 
@@ -151,7 +153,7 @@ export default function AdminDashboardClient() {
                   {index + 2}. {item.name} ({item.sold})
                 </div>
               ))}
-              <button className="font-medium text-[#776B5D] hover:text-[#776B5D]/80 text-sm">View all sales</button>
+              <button onClick={() => router.push('/admin/sales')} className="font-medium text-[#776B5D] hover:text-[#776B5D]/80 text-sm">View all sales</button>
             </div>
           </div>
 
@@ -179,7 +181,7 @@ export default function AdminDashboardClient() {
                   </div>
                 ))
               )}
-              <button className="font-medium text-[#776B5D] hover:text-[#776B5D]/80 text-sm">View all Inventory</button>
+              <button onClick={() => router.push('/admin/inventory')} className="font-medium text-[#776B5D] hover:text-[#776B5D]/80 text-sm">View all Inventory</button>
             </div>
           </div>
         </div>
@@ -242,7 +244,7 @@ export default function AdminDashboardClient() {
         <div className="bg-white shadow-sm mb-8 p-6 rounded-xl">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-semibold text-[#776B5D] text-lg">Recent Orders</h3>
-            <button className="font-medium text-[#776B5D] hover:text-[#776B5D]/80 text-sm">View All</button>
+            <button onClick={() => router.push('/admin/orders')} className="font-medium text-[#776B5D] hover:text-[#776B5D]/80 text-sm">View All</button>
           </div>
           <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {recentOrders.map((order: any) => (

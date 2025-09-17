@@ -81,7 +81,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ item, open, onClose, onAddToOrder
         // Validate the cart item before adding
         if (isNaN(unitPrice) || unitPrice <= 0) {
             console.error('Invalid cart item price:', { basePrice, addonPrice, unitPrice, selectedSize, selectedAddons });
-            alert('Error: Invalid price calculation. Please try again.');
+            (window as any).toast?.error?.('Error: Invalid price calculation. Please try again.');
             return;
         }
 

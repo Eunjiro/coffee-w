@@ -35,6 +35,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
   const menuItems = [
     { label: "Dashboard", icon: LayoutDashboard, path: "/admin", permission: null },
     { label: "POS", icon: ShoppingCart, path: "/admin/pos", permission: null },
+    { label: "Orders", icon: ShoppingCart, path: "/admin/orders", permission: null },
     { label: "Menu", icon: Utensils, path: "/admin/menu", permission: null },
     { label: "Inventory", icon: Package, path: "/admin/inventory", permission: null },
     { label: "Sales", icon: BarChart, path: "/admin/sales", permission: null },

@@ -1,5 +1,5 @@
 // EditMenuModal.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { UploadCloud, Plus } from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
@@ -59,6 +59,8 @@ interface EditMenuModalProps {
 const EditMenuModal: React.FC<EditMenuModalProps> = ({ open, item, cups, ingredients, onClose, onSave, onDelete }) => {
     const [form, setForm] = useState<MenuItem | null>(item);
     const [imagePreview, setImagePreview] = useState<string | null>(item?.image || null);
+    const [addonPrice, setAddonPrice] = useState<string>(item?.type === 'ADDON' ? String(item?.sizes?.[0]?.price ?? 0) : "");
+    const formRef = useRef<HTMLFormElement | null>(null);
 
     const [sizesState, setSizesState] = useState<{ [key: string]: boolean }>({ small: true, medium: false, large: false });
 
@@ -79,6 +81,7 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({ open, item, cups, ingredi
         if (!item) return;
         setForm(item);
         setImagePreview(item.image || null);
+        setAddonPrice(item.type === 'ADDON' ? String(item.sizes?.[0]?.price ?? 0) : "");
 
         // Set sizes availability
         setSizesState({
@@ -138,38 +141,53 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({ open, item, cups, ingredi
     };
 
     const handleSubmit = (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!form) return;
+        e.preventDefault();
+        if (!form) return;
 
-  const updatedForm: MenuItem = {
-    ...form,
-    sizes: ["small", "medium", "large"]
-      .filter(size => sizesState[size])
-      .map(size => ({
-        id: form.sizes.find(s => s.label.toLowerCase() === size)?.id || 0,
-        label: size,
-        price: parseFloat(cupSelections[size].price) || 0,
-        cupId: cupSelections[size].cupId || null,
-      })),
-    ingredients: {
-      small: ingredientsState.small.map(i => ({
-        ingredientId: i.ingredientId,
-        quantity: parseFloat(i.quantity) || 0,
-      })),
-      medium: ingredientsState.medium.map(i => ({
-        ingredientId: i.ingredientId,
-        quantity: parseFloat(i.quantity) || 0,
-      })),
-      large: ingredientsState.large.map(i => ({
-        ingredientId: i.ingredientId,
-        quantity: parseFloat(i.quantity) || 0,
-      })),
-    },
-  };
+        const isAddon = form.type === 'ADDON';
 
-  onSave(updatedForm); // Send changes to parent
-  onClose();           // Close modal after saving ✅
-};
+        const updatedForm: MenuItem = isAddon
+            ? {
+                ...form,
+                sizes: [
+                    {
+                        id: form.sizes?.[0]?.id || 0,
+                        label: 'Single',
+                        price: parseFloat(addonPrice) || 0,
+                        cupId: null,
+                    },
+                ],
+                ingredients: { small: [], medium: [], large: [] },
+            }
+            : {
+                ...form,
+                sizes: ["small", "medium", "large"]
+                    .filter(size => sizesState[size])
+                    .map(size => ({
+                        id: form.sizes.find(s => s.label.toLowerCase() === size)?.id || 0,
+                        label: size,
+                        price: parseFloat(cupSelections[size].price) || 0,
+                        cupId: cupSelections[size].cupId || null,
+                    })),
+                ingredients: {
+                    small: ingredientsState.small.map(i => ({
+                        ingredientId: i.ingredientId,
+                        quantity: parseFloat(i.quantity) || 0,
+                    })),
+                    medium: ingredientsState.medium.map(i => ({
+                        ingredientId: i.ingredientId,
+                        quantity: parseFloat(i.quantity) || 0,
+                    })),
+                    large: ingredientsState.large.map(i => ({
+                        ingredientId: i.ingredientId,
+                        quantity: parseFloat(i.quantity) || 0,
+                    })),
+                },
+            };
+
+        onSave(updatedForm);
+        onClose();
+    };
 
 
     const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -182,14 +200,24 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({ open, item, cups, ingredi
     const footer = (
         <>
             <Button variant="secondary" onClick={onClose}>Cancel</Button>
-            {onDelete && <Button variant="danger" onClick={() => onDelete(form.id)}>Delete</Button>}
-            <Button type="submit">Save</Button>
+            {onDelete && (
+                <Button
+                    variant="danger"
+                    onClick={() => {
+                        onDelete(form.id);
+                        onClose();
+                    }}
+                >
+                    Delete
+                </Button>
+            )}
+            <Button type="button" onClick={() => formRef.current?.requestSubmit()}>Save</Button>
         </>
     );
 
     return (
         <Modal isOpen={open} onClose={onClose} title="Edit Menu" size="lg" footer={footer}>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
 
                 {/* Image Upload */}
                 <div className="flex justify-center items-center">
@@ -221,7 +249,7 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({ open, item, cups, ingredi
                             onChange={e => setForm(prev => prev ? { ...prev, type: e.target.value as MenuItem['type'] } : null)}
                             options={[
                                 { label: "Coffee", value: "COFFEE" },
-                                { label: "Non-Coffee", value: "NON-COFFEE" },
+                                { label: "Non-Coffee", value: "NON_COFFEE" },
                                 { label: "Meal", value: "MEAL" },
                                 { label: "Addon", value: "ADDON" }
                             ]}
@@ -240,40 +268,48 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({ open, item, cups, ingredi
                     ))}
                 </Section>
 
-                {/* Sizes & Cups */}
-                <Section title="Cups & Prices">
-                    {(["small", "medium", "large"] as const).map(size => sizesState[size] && (
-                        <Section key={size} title={size.charAt(0).toUpperCase() + size.slice(1)}>
-                            <div className="grid grid-cols-2 gap-4">
-                                <select value={cupSelections[size].cupId || ""} onChange={e => handleCupChange(size, "cupId", e.target.value)} className="w-full px-3 py-2 border border-[#B0A695] rounded-lg">
-                                    <option value="">Select Cup</option>
-                                    {cups.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                                <Input type="number" value={cupSelections[size].price} onChange={e => handleCupChange(size, "price", e.target.value)} placeholder="Price" />
-                            </div>
-                        </Section>
-                    ))}
-                </Section>
+                {/* Sizes & Cups / Addon Price */}
+                {form.type === 'ADDON' ? (
+                    <Section title="Price">
+                        <Input type="number" value={addonPrice} onChange={e => setAddonPrice(e.target.value)} placeholder="Price" />
+                    </Section>
+                ) : (
+                    <Section title="Cups & Prices">
+                        {["small", "medium", "large"].map(size => (sizesState as any)[size] && (
+                            <Section key={size} title={(size as string).charAt(0).toUpperCase() + (size as string).slice(1)}>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <select value={(cupSelections as any)[size].cupId || ""} onChange={e => handleCupChange(size as any, "cupId", e.target.value)} className="w-full px-3 py-2 border border-[#B0A695] rounded-lg">
+                                        <option value="">Select Cup</option>
+                                        {cups.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                    <Input type="number" value={(cupSelections as any)[size].price} onChange={e => handleCupChange(size as any, "price", e.target.value)} placeholder="Price" />
+                                </div>
+                            </Section>
+                        ))}
+                    </Section>
+                )}
 
                 {/* Ingredients */}
-                <Section title="Ingredients">
-                    {(["small", "medium", "large"] as const).map(size => sizesState[size] && (
-                        <Section key={size} title={size.charAt(0).toUpperCase() + size.slice(1)}>
-                            {ingredientsState[size].map((ing, i) => (
-                                <div key={ing.id} className="grid grid-cols-2 gap-4 mb-2">
-                                    <select value={ing.ingredientId} onChange={e => handleIngredientChange(size, i, "ingredientId", e.target.value)} className="w-full px-3 py-2 border border-[#B0A695] rounded-lg">
-                                        <option value="">Select Ingredient</option>
-                                        {ingredients.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
-                                    </select>
-                                    <Input type="text" value={ing.quantity} onChange={e => handleIngredientChange(size, i, "quantity", e.target.value)} placeholder="Quantity" />
-                                </div>
-                            ))}
-                            <button type="button" onClick={() => handleAddIngredient(size)} className="flex items-center gap-1 mt-2 text-sm text-[#776B5D] hover:text-[#776B5D]/80">
-                                <Plus size={16} /> Add Ingredient
-                            </button>
-                        </Section>
-                    ))}
-                </Section>
+                {form.type !== 'ADDON' && (
+                    <Section title="Ingredients">
+                        {["small", "medium", "large"].map(size => (sizesState as any)[size] && (
+                            <Section key={size} title={(size as string).charAt(0).toUpperCase() + (size as string).slice(1)}>
+                                {(ingredientsState as any)[size].map((ing: any, i: number) => (
+                                    <div key={ing.id} className="grid grid-cols-2 gap-4 mb-2">
+                                        <select value={ing.ingredientId} onChange={e => handleIngredientChange(size as any, i, "ingredientId", e.target.value)} className="w-full px-3 py-2 border border-[#B0A695] rounded-lg">
+                                            <option value="">Select Ingredient</option>
+                                            {ingredients.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
+                                        </select>
+                                        <Input type="text" value={ing.quantity} onChange={e => handleIngredientChange(size as any, i, "quantity", (e.target as any).value)} placeholder="Quantity" />
+                                    </div>
+                                ))}
+                                <button type="button" onClick={() => handleAddIngredient(size as any)} className="flex items-center gap-1 mt-2 text-sm text-[#776B5D] hover:text-[#776B5D]/80">
+                                    <Plus size={16} /> Add Ingredient
+                                </button>
+                            </Section>
+                        ))}
+                    </Section>
+                )}
 
             </form>
         </Modal>

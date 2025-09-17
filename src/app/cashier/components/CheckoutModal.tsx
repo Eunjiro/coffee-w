@@ -79,8 +79,8 @@ export default function CheckoutModal({
   }, [customerPhone, joinLoyalty]);
 
   const placeOrder = async () => {
-    if (!paymentMethod) return alert("Select a payment method");
-    if (cartItems.length === 0) return alert("Cart is empty");
+    if (!paymentMethod) { (window as any).toast?.error?.("Select a payment method"); return; }
+    if (cartItems.length === 0) { (window as any).toast?.error?.("Cart is empty"); return; }
 
     setLoading(true);
     try {
@@ -100,7 +100,7 @@ export default function CheckoutModal({
         });
         const redeemData = await redeemRes.json();
         if (!redeemData.success) {
-          alert("Failed to redeem reward: " + (redeemData.error || "Unknown"));
+          (window as any).toast?.error?.("Failed to redeem reward: " + (redeemData.error || "Unknown"));
           setLoading(false);
           return;
         }
@@ -122,7 +122,7 @@ export default function CheckoutModal({
       });
       const posData = await posRes.json();
       if (!posData.success || !posData.orderRef) {
-        alert("Failed to place order: " + (posData.error || "Unknown error"));
+        (window as any).toast?.error?.("Failed to place order: " + (posData.error || "Unknown error"));
         setLoading(false);
         return;
       }
@@ -158,12 +158,12 @@ if (joinLoyalty) {
 }
 
 
-      alert("Order placed successfully!");
+      (window as any).toast?.success?.("Order placed successfully!");
       onOrderPlaced();
       onClose();
     } catch (err) {
       console.error(err);
-      alert("Error placing order");
+      (window as any).toast?.error?.("Error placing order");
     } finally {
       setLoading(false);
     }

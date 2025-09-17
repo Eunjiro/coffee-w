@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Banknote, Smartphone, ArrowLeft, CheckCircle, User, Search, Receipt, Star } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 // Remove mock data imports - we'll use real API endpoints
 // import JoinLoyaltyModal from "../components/modals/JoinLoyaltyModal";
@@ -136,7 +137,8 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
             const addonsTotal = item.selectedAddons
                 ? item.selectedAddons.reduce((sum, addonName) => {
                     const addon = addonData.find((a) => a.name === addonName);
-                    return sum + (addon ? (addon.basePrice || 0) : 0);
+                    const addonPrice = addon ? Number((addon.sizes?.[0]?.price) ?? addon.basePrice ?? 0) : 0;
+                    return sum + addonPrice;
                 }, 0)
                 : 0;
             const itemTotal = (basePrice + addonsTotal) * item.quantity;
@@ -218,7 +220,7 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
     const handleJoinLoyalty = (customerData: { name: string; phone: string; email: string }) => {
         // In a real application, this would make an API call to create a new loyalty member
         // For now, we'll just show an alert and set the customer name
-        alert(`Welcome to our loyalty program, ${customerData.name}! You'll receive 100 welcome points.`);
+        toast.success(`Welcome to our loyalty program, ${customerData.name}! You'll receive 100 welcome points.`);
         setCustomerName(customerData.name);
         // You could also add the new member to the loyalty data here
     };
@@ -233,7 +235,7 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
 
     const handleConfirmPayment = async () => {
         if (paymentMethod === "cash" && parseFloat(amountPaid) < total) {
-            alert("Amount paid must be greater than or equal to total amount");
+            toast.error("Amount paid must be greater than or equal to total amount");
             return;
         }
 
@@ -243,7 +245,7 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
             // Get the original cart data from sessionStorage to maintain proper structure
             const cartData = sessionStorage.getItem('cartItems');
             if (!cartData) {
-                alert("Cart data not found. Please try again.");
+                toast.error("Cart data not found. Please try again.");
                 return;
             }
 
@@ -288,7 +290,7 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
             const orderResult = await orderResponse.json();
 
             if (!orderResult.success) {
-                alert("Failed to create order: " + (orderResult.error || "Unknown error"));
+                toast.error("Failed to create order: " + (orderResult.error || "Unknown error"));
                 return;
             }
 
@@ -302,7 +304,7 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
             const payData = await payResponse.json();
 
             if (!payData.success) {
-                alert("Failed to process payment: " + (payData.error || "Unknown error"));
+                toast.error("Failed to process payment: " + (payData.error || "Unknown error"));
                 return;
             }
 
@@ -330,12 +332,12 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
             if (propOnPaymentComplete) {
                 propOnPaymentComplete(paymentData);
             } else {
-                alert("Payment completed successfully!");
+                toast.success("Payment completed successfully!");
                 router.push("/cashier/orders");
             }
         } catch (error) {
             console.error('Error processing payment:', error);
-            alert("Error processing payment. Please try again.");
+            toast.error("Error processing payment. Please try again.");
         }
     };
 
@@ -373,7 +375,7 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
 
     return (
         <div className="flex lg:flex-row flex-col bg-[#F3EEEA] w-full h-full overflow-hidden">
-            {/* Left: Order Review & Customer Info */}
+            {/* Left: Order Review & Cashier Info */}
             <div className="flex flex-col flex-1 p-4 lg:p-8 min-h-0 overflow-y-auto custom-scrollbar">
                 <div className="flex items-center mb-6">
                     <Button variant="ghost" onClick={handleBack} className="mr-4">
@@ -406,7 +408,8 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
                                     const addonsTotal = item.selectedAddons
                                         ? item.selectedAddons.reduce((sum, addonName) => {
                                             const addon = addonData.find((a) => a.name === addonName);
-                                            return sum + (addon ? addon.price : 0);
+                                            const addonPrice = addon ? Number((addon.sizes?.[0]?.price) ?? addon.basePrice ?? 0) : 0;
+                                            return sum + addonPrice;
                                         }, 0)
                                         : 0;
                                     const itemTotal = ((basePrice ?? 0) + addonsTotal) * item.quantity;
@@ -446,14 +449,14 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
                     </div>
                 </div>
 
-                {/* Customer Information */}
+                {/* Cashier Information */}
                 <div className="bg-white shadow-sm p-6 border border-[#B0A695]/20 rounded-xl">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="flex items-center font-semibold text-[#776B5D] text-lg">
                             <User className="mr-2 w-5 h-5" />
-                            Customer Information
+                            Cashier Information
                         </h3>
-                        <Button variant="secondary" onClick={() => alert("Join Loyalty Program feature coming soon")}>
+                        <Button variant="secondary" onClick={() => toast.info("Join Loyalty Program feature coming soon") }>
                             <Star className="mr-2 w-4 h-4" />
                             Join Loyalty Program
                         </Button>

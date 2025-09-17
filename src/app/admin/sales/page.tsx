@@ -65,6 +65,8 @@ const Sales: React.FC = () => {
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'all'>('week');
   const [selectedStatus] = useState<'all' | 'completed' | 'refunded' | 'cancelled'>('completed');
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'refunded' | 'cancelled' | 'pending' | 'paid'>("all");
   const [error, setError] = useState<string | null>(null);
 
   // Fetch sales data from the API based on selected filters
@@ -367,7 +369,26 @@ const Sales: React.FC = () => {
 
       {/* Recent Sales Section */}
       <div className="bg-white shadow-sm p-6 rounded-xl">
-        <h3 className="mb-4 font-semibold text-[#776B5D] text-lg">Recent Sales</h3>
+        <div className="flex justify-between items-center mb-4 gap-4">
+          <h3 className="font-semibold text-[#776B5D] text-lg">Recent Sales</h3>
+          <div className="flex gap-2 items-center">
+            <select
+              className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+            >
+              {(['all','completed','paid','pending','cancelled','refunded'] as const).map(s => (
+                <option key={s} value={s}>{s[0].toUpperCase()+s.slice(1)}</option>
+              ))}
+            </select>
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search order, cashier, items, payment"
+              className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
+            />
+          </div>
+        </div>
         {salesData.length === 0 ? (
           <div className="py-8 text-[#776B5D]/70 text-center">
             No sales data available for the selected period.
@@ -378,7 +399,7 @@ const Sales: React.FC = () => {
               <thead>
                 <tr className="border-[#B0A695]/20 border-b">
                   <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Order ID</th>
-                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Customer</th>
+                  <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Cashier</th>
                   <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Items</th>
                   <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Total</th>
                   <th className="px-4 py-3 font-medium text-[#776B5D] text-left">Payment</th>
@@ -392,6 +413,16 @@ const Sales: React.FC = () => {
                     const dateA = new Date(a.timestamp);
                     const dateB = new Date(b.timestamp);
                     return dateB.getTime() - dateA.getTime();
+                  })
+                  .filter((sale) => {
+                    if (statusFilter !== 'all' && sale.status !== statusFilter) return false;
+                    if (!searchTerm.trim()) return true;
+                    const q = searchTerm.toLowerCase();
+                    const idMatch = sale.orderId.toLowerCase().includes(q);
+                    const cashierMatch = (sale.customerName || '').toLowerCase().includes(q);
+                    const payMatch = sale.paymentMethod.toLowerCase().includes(q);
+                    const itemsMatch = sale.items.some(i => i.name.toLowerCase().includes(q));
+                    return idMatch || cashierMatch || payMatch || itemsMatch;
                   })
                   .slice(0, 10)
                   .map((sale) => (

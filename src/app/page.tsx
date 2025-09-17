@@ -27,7 +27,7 @@ export default function LoginPage() {
             router.push('/cashier');
             break;
           case 'BARISTA':
-            router.push('/barista');
+            router.push('/cashier');
             break;
           default:
             router.push('/');

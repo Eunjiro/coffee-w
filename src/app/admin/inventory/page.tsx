@@ -131,7 +131,7 @@ export default function InventoryPage() {
       await fetchData();
     } catch (err) {
       console.error(err);
-      alert("Failed to add supplier");
+      (window as any).toast?.error?.("Failed to add supplier");
     }
   };
 
@@ -149,7 +149,7 @@ export default function InventoryPage() {
       await fetchData();
     } catch (err) {
       console.error(err);
-      alert("Failed to add unit");
+      (window as any).toast?.error?.("Failed to add unit");
     }
   };
 
@@ -325,7 +325,7 @@ export default function InventoryPage() {
               className="bg-[#776B5D] hover:bg-[#776B5D]/90 text-[#F3EEEA]"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add Ingredient
+              Add Inventory
             </Button>
             <Button variant="outline" className="border-[#B0A695] text-[#776B5D]" onClick={handleAddSupplier}>
               <Plus className="w-4 h-4 mr-2" />

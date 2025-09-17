@@ -19,7 +19,6 @@ type MenuIngredient = {
 };
 
 type MenuCup = {
-  cupId: string;
   price: string;
 };
 
@@ -40,11 +39,12 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
   const [status, setStatus] = useState<"AVAILABLE" | "UNAVAILABLE">("AVAILABLE");
   const [menuType, setMenuType] = useState("COFFEE");
   const [sizes, setSizes] = useState({ small: true, medium: false, large: false });
+  const [addonPrice, setAddonPrice] = useState("");
 
   const [cups, setCups] = useState<Record<typeof sizesList[number], MenuCup>>({
-    small: { cupId: "", price: "" },
-    medium: { cupId: "", price: "" },
-    large: { cupId: "", price: "" },
+    small: { price: "" },
+    medium: { price: "" },
+    large: { price: "" },
   });
 
   const [ingredients, setIngredients] = useState<Record<typeof sizesList[number], MenuIngredient[]>>({
@@ -54,7 +54,7 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
   });
 
   const [ingredientOptions, setIngredientOptions] = useState<{ id: number; name: string; unit?: string }[]>([]);
-  const [cupOptions, setCupOptions] = useState<{ id: number; name: string }[]>([]);
+  
 
   // Reset form when modal opens
   const resetForm = useCallback(() => {
@@ -64,8 +64,9 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
     setStatus("AVAILABLE");
     setMenuType("COFFEE");
     setSizes({ small: true, medium: false, large: false });
-    setCups({ small: { cupId: "", price: "" }, medium: { cupId: "", price: "" }, large: { cupId: "", price: "" } });
+    setCups({ small: { price: "" }, medium: { price: "" }, large: { price: "" } });
     setIngredients({ small: [], medium: [], large: [] });
+    setAddonPrice("");
   }, []);
 
   useEffect(() => {
@@ -77,23 +78,15 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
     if (!open) return;
     (async () => {
       try {
-        const [ingsRes, cupsRes] = await Promise.all([
-          fetch("/api/admin/inventory/ingredients"),
-          fetch("/api/admin/inventory/cups"),
-        ]);
-        const [ings, cups] = await Promise.all([
-          ingsRes.ok ? ingsRes.json() : [],
-          cupsRes.ok ? cupsRes.json() : [],
-        ]);
+        const ingsRes = await fetch("/api/admin/inventory/ingredients");
+        const ings = ingsRes.ok ? await ingsRes.json() : [];
         setIngredientOptions(
           Array.isArray(ings)
             ? ings.map((i: any) => ({ id: i.id, name: i.name, unit: i.units?.name }))
             : []
         );
-        setCupOptions(Array.isArray(cups) ? cups : []);
       } catch (e) {
         setIngredientOptions([]);
-        setCupOptions([]);
       }
     })();
   }, [open]);
@@ -127,10 +120,10 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
     }));
   };
 
-  const handleCupChange = (size: typeof sizesList[number], field: "cupId" | "price", value: string) => {
+  const handleCupChange = (size: typeof sizesList[number], value: string) => {
     setCups(prev => ({
       ...prev,
-      [size]: { ...prev[size], [field]: value },
+      [size]: { ...prev[size], price: value },
     }));
   };
 
@@ -150,19 +143,27 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
         type: menuType as "COFFEE" | "NON_COFFEE" | "MEAL" | "ADDON", // FIX: send exact enum value
         status,
         category,
-        sizes: sizesList
-          .filter(size => sizes[size])
-          .map(size => ({
-            label: size.charAt(0).toUpperCase() + size.slice(1),
-            price: parseFloat(cups[size].price || "0"),
-            cupId: cups[size].cupId ? Number(cups[size].cupId) : undefined,
-            ingredients: ingredients[size]
-              .filter(ing => ing.ingredientId && ing.quantity)
-              .map(ing => ({
-                ingredientId: Number(ing.ingredientId),
-                qtyNeeded: parseFloat(ing.quantity),
-              })),
-          })),
+        sizes:
+          menuType === "ADDON"
+            ? [
+                {
+                  label: "Single",
+                  price: parseFloat(addonPrice || "0"),
+                  ingredients: [],
+                },
+              ]
+            : sizesList
+                .filter(size => sizes[size])
+                .map(size => ({
+                  label: size.charAt(0).toUpperCase() + size.slice(1),
+                  price: parseFloat(cups[size].price || "0"),
+                  ingredients: ingredients[size]
+                    .filter(ing => ing.ingredientId && ing.quantity)
+                    .map(ing => ({
+                      ingredientId: Number(ing.ingredientId),
+                      qtyNeeded: parseFloat(ing.quantity),
+                    })),
+                })),
       };
 
       const res = await fetch("/api/admin/menu", {
@@ -180,7 +181,7 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
       onClose();
     } catch (err: any) {
       console.error(err);
-      alert(`Error creating menu: ${err.message}`);
+      (window as any).toast?.error?.(`Error creating menu: ${err.message}`);
     }
   };
 
@@ -189,12 +190,12 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
       <Button variant="secondary" onClick={onClose}>
         Close
       </Button>
-      <Button onClick={handleSubmit}>Save Menu</Button>
+      <Button onClick={handleSubmit}>Save</Button>
     </>
   );
 
   return (
-    <Modal isOpen={open} onClose={onClose} title="Add Menu" size="lg" footer={footer}>
+    <Modal isOpen={open} onClose={onClose} title="Add Menu / Addon" size="lg" footer={footer}>
       <div className="space-y-6">
         {/* Image Upload */}
         <div className="flex justify-center items-center">
@@ -223,23 +224,32 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
           </FormField>
         </div>
 
-        {/* Sizes & Status */}
+        {/* Price/Sizes & Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
           <div>
-            <label className="block mb-2 font-medium text-[#776B5D] text-sm">Sizes</label>
-            <div className="flex gap-4">
-              {sizesList.map(s => (
-                <label key={s} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={sizes[s]}
-                    onChange={() => handleSizeChange(s)}
-                    className="rounded focus:ring-[#776B5D] w-4 h-4 text-[#776B5D]"
-                  />
-                  <span className="capitalize text-[#776B5D]">{s}</span>
-                </label>
-              ))}
-            </div>
+            {menuType === "ADDON" ? (
+              <>
+                <label className="block mb-2 font-medium text-[#776B5D] text-sm">Price</label>
+                <Input value={addonPrice} onChange={e => setAddonPrice(e.target.value)} placeholder="Price" />
+              </>
+            ) : (
+              <>
+                <label className="block mb-2 font-medium text-[#776B5D] text-sm">Sizes</label>
+                <div className="flex gap-4">
+                  {sizesList.map(s => (
+                    <label key={s} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={sizes[s]}
+                        onChange={() => handleSizeChange(s)}
+                        className="rounded focus:ring-[#776B5D] w-4 h-4 text-[#776B5D]"
+                      />
+                      <span className="capitalize text-[#776B5D]">{s}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
           <div>
             <label className="block mb-2 font-medium text-[#776B5D] text-sm">Status</label>
@@ -266,58 +276,49 @@ const AddMenuModal: React.FC<AddMenuModalProps> = ({ open, onClose, onNext }) =>
           </div>
         </div>
 
-        {/* Cups & Ingredients Sections */}
-        {sizesList.map(size => {
-          if (!sizes[size]) return null;
-          return (
-            <SizeSection key={size} title={size.charAt(0).toUpperCase() + size.slice(1)}>
-              {/* Cups */}
-              <div className="gap-4 grid grid-cols-2 mb-4">
-                <Input
-                  value={cups[size].price}
-                  onChange={e => handleCupChange(size, "price", e.target.value)}
-                  placeholder="Price"
-                />
-                <select
-                  value={cups[size].cupId}
-                  onChange={e => handleCupChange(size, "cupId", e.target.value)}
-                  className="w-full px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
-                >
-                  <option value="">Select Cup</option>
-                  {cupOptions.map(c => (
-                    <option key={c.id} value={String(c.id)}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Ingredients */}
-              {ingredients[size].map((ing, i) => (
-                <div key={ing.id} className="gap-4 grid grid-cols-2 mb-2">
-                  <select
-                    value={ing.ingredientId}
-                    onChange={e => handleIngredientChange(size, i, "ingredientId", e.target.value)}
-                    className="w-full px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
-                  >
-                    <option value="">Select Ingredient</option>
-                    {ingredientOptions.map(opt => (
-                      <option key={opt.id} value={String(opt.id)}>
-                        {opt.name}{opt.unit ? ` (${opt.unit})` : ""}
-                      </option>
-                    ))}
-                  </select>
+        {/* Cups & Ingredients Sections (hidden for ADDON) */}
+        {menuType !== "ADDON" &&
+          sizesList.map(size => {
+            if (!sizes[size]) return null;
+            return (
+              <SizeSection key={size} title={size.charAt(0).toUpperCase() + size.slice(1)}>
+                {/* Cups */}
+                <div className="gap-4 grid grid-cols-2 mb-4">
                   <Input
-                    value={ing.quantity}
-                    onChange={e => handleIngredientChange(size, i, "quantity", e.target.value)}
-                    placeholder="Quantity"
+                    value={cups[size].price}
+                    onChange={e => handleCupChange(size, e.target.value)}
+                    placeholder="Price"
                   />
                 </div>
-              ))}
-              <Button variant="secondary" size="sm" onClick={() => handleAddIngredient(size)} className="mt-2">
-                <Plus size={16} /> Add Ingredient
-              </Button>
-            </SizeSection>
-          );
-        })}
+
+                {/* Ingredients */}
+                {ingredients[size].map((ing, i) => (
+                  <div key={ing.id} className="gap-4 grid grid-cols-2 mb-2">
+                    <select
+                      value={ing.ingredientId}
+                      onChange={e => handleIngredientChange(size, i, "ingredientId", e.target.value)}
+                      className="w-full px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
+                    >
+                      <option value="">Select Ingredient</option>
+                      {ingredientOptions.map(opt => (
+                        <option key={opt.id} value={String(opt.id)}>
+                          {opt.name}{opt.unit ? ` (${opt.unit})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      value={ing.quantity}
+                      onChange={e => handleIngredientChange(size, i, "quantity", e.target.value)}
+                      placeholder="Quantity"
+                    />
+                  </div>
+                ))}
+                <Button variant="secondary" size="sm" onClick={() => handleAddIngredient(size)} className="mt-2">
+                  <Plus size={16} /> Add Ingredient
+                </Button>
+              </SizeSection>
+            );
+          })}
       </div>
     </Modal>
   );

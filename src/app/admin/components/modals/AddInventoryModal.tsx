@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, User, Hash, DollarSign, AlertTriangle, FileText } from 'lucide-react';
+import { Package, User, Hash, DollarSign, AlertTriangle, FileText, PhilippinePeso } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import FormField, { Input, Select, Textarea } from '../ui/FormField';
@@ -53,12 +53,15 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
     stock: '0',
     packagePrice: '',
     threshold: '0',
+    description: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(false);
+  const [supplierName, setSupplierName] = useState("");
+  const [newUnitName, setNewUnitName] = useState("");
 
   const categories = ['liquid', 'solid', 'powder', 'syrup', 'disposable', 'dairy', 'other'];
 
@@ -85,28 +88,30 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
     }
   }, [isOpen]);
 
-  const quickAddSupplier = async () => {
-    const name = typeof window !== 'undefined' ? window.prompt('Supplier name:') : null;
-    if (!name) return;
-    const address = typeof window !== 'undefined' ? window.prompt('Address (optional):') : null;
+  const ensureSupplierId = async (): Promise<number | null> => {
+    const trimmed = supplierName.trim();
+    if (!trimmed) return formData.supplierId ? Number(formData.supplierId) : null;
+    const existing = suppliers.find(s => s.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) return existing.id;
     try {
       const res = await fetch('/api/admin/inventory/suppliers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, address }),
+        body: JSON.stringify({ name: trimmed }),
       });
       if (!res.ok) throw new Error('Failed to add supplier');
       const created = await res.json();
       setSuppliers(prev => [...prev, created]);
-      setFormData(prev => ({ ...prev, supplierId: String(created.id) }));
+      return created.id;
     } catch (e) {
       console.error(e);
-      alert('Failed to add supplier');
+      (window as any).toast?.error?.('Failed to add supplier');
+      return formData.supplierId ? Number(formData.supplierId) : null;
     }
   };
 
   const quickAddUnit = async () => {
-    const name = typeof window !== 'undefined' ? window.prompt('Unit name (e.g., ml, g):') : null;
+    const name = newUnitName.trim();
     if (!name) return;
     try {
       const res = await fetch('/api/admin/inventory/units', {
@@ -118,9 +123,10 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
       const created = await res.json();
       setUnits(prev => [...prev, created]);
       setFormData(prev => ({ ...prev, unitId: String(created.id) }));
+      setNewUnitName("");
     } catch (e) {
       console.error(e);
-      alert('Failed to add unit');
+      (window as any).toast?.error?.('Failed to add unit');
     }
   };
 
@@ -135,7 +141,11 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
         stock: editingItem.stock.toString(),
         packagePrice: editingItem.packagePrice?.toString() || '',
         threshold: editingItem.threshold.toString(),
+        description: '',
       });
+      // prefill supplierName from list if available
+      const s = suppliers.find(s => s.id === (editingItem.supplierId ?? -1));
+      setSupplierName(s?.name || "");
     } else {
       setFormData({
         name: '',
@@ -146,10 +156,13 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
         stock: '0',
         packagePrice: '',
         threshold: '0',
+        description: '',
       });
+      setSupplierName("");
+      setNewUnitName("");
     }
     setErrors({});
-  }, [editingItem, isOpen]);
+  }, [editingItem, isOpen, suppliers]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -211,15 +224,17 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
 
     setLoading(true);
     try {
+      const supplierIdResolved = await ensureSupplierId();
       const payload: any = {
         name: formData.name,
         category: formData.category,
-        supplierId: formData.supplierId ? Number(formData.supplierId) : null,
+        supplierId: supplierIdResolved,
         unitId: formData.unitId ? Number(formData.unitId) : null,
         packagePrice: formData.packagePrice ? Number(formData.packagePrice) : null,
         qtyPerPack: formData.qtyPerPack ? Number(formData.qtyPerPack) : null,
         stock: Number(formData.stock),
         threshold: Number(formData.threshold),
+        description: formData.description || null,
       };
 
       const url = editingItem 
@@ -254,7 +269,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Error saving ingredient:', error);
-      alert(`Error: ${error instanceof Error ? error.message : 'Failed to save ingredient'}`);
+      (window as any).toast?.error?.(`Error: ${error instanceof Error ? (error as any).message : 'Failed to save ingredient'}`);
     } finally {
       setLoading(false);
     }
@@ -273,7 +288,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
   console.log('Modal is open, rendering...');
   
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={editingItem ? 'Edit Ingredient' : 'Add Ingredient'} size="xl" footer={footer}>
+    <Modal isOpen={isOpen} onClose={onClose} title={editingItem ? 'Edit Inventory' : 'Add Inventory'} size="xl" footer={footer}>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
@@ -299,41 +314,40 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
               />
             </FormField>
 
-            <FormField label="Supplier" error={errors.supplierId}>
-              <Select
-                value={formData.supplierId}
-                onChange={(e) => handleInputChange('supplierId', e.target.value)}
-                options={[
-                  { value: '', label: 'Select Supplier (Optional)' },
-                  ...suppliers.map((supplier) => ({ value: supplier.id.toString(), label: supplier.name }))
-                ]}
-                placeholder="Select Supplier"
+            <FormField label="Supplier (Optional)">
+              <Input
+                type="text"
+                value={supplierName}
+                onChange={(e) => setSupplierName(e.target.value)}
+                placeholder="Type supplier name"
                 icon={User}
-                error={!!errors.supplierId}
               />
-              <div className="mt-2">
-                <Button type="button" onClick={quickAddSupplier}>
-                  Add Supplier
-                </Button>
-              </div>
             </FormField>
 
             <FormField label="Unit" error={errors.unitId}>
-              <Select
-                value={formData.unitId}
-                onChange={(e) => handleInputChange('unitId', e.target.value)}
-                options={[
-                  { value: '', label: 'Select Unit (Optional)' },
-                  ...units.map((unit) => ({ value: unit.id.toString(), label: unit.name }))
-                ]}
-                placeholder="Select Unit"
-                icon={Hash}
-                error={!!errors.unitId}
-              />
-              <div className="mt-2">
-                <Button type="button" onClick={quickAddUnit}>
-                  Add Unit
-                </Button>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-1">
+                  <Select
+                    value={formData.unitId}
+                    onChange={(e) => handleInputChange('unitId', e.target.value)}
+                    options={[
+                      { value: '', label: 'Select Unit (Optional)' },
+                      ...units.map((unit) => ({ value: unit.id.toString(), label: unit.name }))
+                    ]}
+                    placeholder="Select Unit"
+                    icon={Hash}
+                    error={!!errors.unitId}
+                  />
+                </div>
+                <div className="col-span-2 flex gap-2">
+                  <Input
+                    type="text"
+                    value={newUnitName}
+                    onChange={(e) => setNewUnitName(e.target.value)}
+                    placeholder="New Unit"
+                  />
+                  <Button type="button" onClick={quickAddUnit}>Add</Button>
+                </div>
               </div>
             </FormField>
           </div>
@@ -367,7 +381,7 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
                 value={formData.packagePrice}
                 onChange={(e) => handleInputChange('packagePrice', e.target.value)}
                 placeholder="ex: 50 (optional)"
-                icon={DollarSign}
+                icon={PhilippinePeso}
                 error={!!errors.packagePrice}
               />
             </FormField>
@@ -385,19 +399,20 @@ const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
           </div>
         </div>
 
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <p className="text-sm text-blue-700">
-            <strong>Note:</strong> Package Price and Quantity per Pack are optional. If both are provided, 
-            the unit cost will be automatically calculated as Package Price ÷ Quantity per Pack.
-          </p>
-        </div>
+        <FormField label="Description">
+          <Textarea
+            value={formData.description}
+            onChange={(e) => handleInputChange('description', (e as React.ChangeEvent<HTMLTextAreaElement>).target.value)}
+            placeholder="Optional notes or description about the ingredient"
+          />
+        </FormField>
 
         <div className="flex justify-end gap-3">
           <Button variant="secondary" type="button" onClick={onClose} disabled={loading}>
             Close
           </Button>
           <Button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : (editingItem ? 'Update Ingredient' : 'Add Ingredient')}
+            {loading ? 'Saving...' : (editingItem ? 'Update Inventory' : 'Add Inventory')}
           </Button>
         </div>
       </form>

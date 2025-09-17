@@ -1,225 +1,281 @@
-// Add the "use client" directive at the top to mark the file as a client component
-"use client";
+import React, { useState, useEffect, useRef } from 'react';
+import { User, Mail, Phone, Calendar, Shield } from 'lucide-react';
+// Define available roles inline to avoid mock dependency
+const userRoles = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'cashier', label: 'Cashier' },
+];
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import FormField, { Input, Select } from '../ui/FormField';
 
-import { useEffect, useState } from "react";
-import { User, Mail, Phone, Calendar, Shield } from "lucide-react"; // Icons
-
-// User type for data
-interface User {
-  name: string;
-  email: string;
-  role: "admin" | "cashier" | "barista";
-  status: "active" | "inactive";
-  phone?: string;
-  hireDate: string; // ISO string format for date
-}
-
-interface UserType {
+type EditingUser = {
   id: number;
   email: string;
+  username?: string;
   name: string;
-  role: "admin" | "cashier" | "barista"; // Ensure this is the same as the type used in the page
-  status: "active" | "inactive";
-  phone: string;
-  createdAt: string;
-  hireDate: string;
-}
+  role: 'admin' | 'cashier';
+  status: 'active' | 'inactive';
+  phone?: string;
+  hireDate: string; // ISO string
+};
 
 interface UserModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (user: Omit<UserType, "id" | "lastLogin">) => void;
-  editingUser?: UserType | null; // Ensure consistency here as well
+    isOpen: boolean;
+    onClose: () => void;
+    // Payload matches API fields expected by /api/admin/user
+    onSave: (user: {
+      email: string;
+      username: string;
+      password?: string;
+      name: string;
+      role: 'admin' | 'cashier';
+      status: 'active' | 'inactive';
+      phone?: string;
+      hireDate?: string; // yyyy-mm-dd
+    }) => void;
+    editingUser?: EditingUser | null;
 }
 
 const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, editingUser }) => {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    role: "barista" as "admin" | "cashier" | "barista",
-    status: "active" as "active" | "inactive",
-    hireDate: new Date().toISOString().split("T")[0], // default to today's date
-  });
+    const [formData, setFormData] = useState({
+        username: '',
+        firstName: '',
+        lastName: '',
+        email: '',
+        role: 'cashier' as 'admin' | 'cashier',
+        status: 'active' as 'active' | 'inactive',
+        phone: '',
+        hireDate: new Date().toISOString().split('T')[0],
+        password: '',
+    });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const formRef = useRef<HTMLFormElement | null>(null);
 
-  // Reset form data when modal opens or user is being edited
-  useEffect(() => {
-    if (editingUser) {
-      setFormData({
-        name: editingUser.name,
-        email: editingUser.email,
-        phone: editingUser.phone || "",
-        role: editingUser.role,
-        status: editingUser.status,
-        hireDate: editingUser.hireDate,
-      });
-    } else {
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        role: "barista",
-        status: "active",
-        hireDate: new Date().toISOString().split("T")[0],
-      });
-    }
-    setErrors({});
-  }, [editingUser, isOpen]);
+    useEffect(() => {
+        if (editingUser) {
+            // Split name into first/last heuristically
+            const [firstName = '', ...rest] = (editingUser.name || '').split(' ');
+            const lastName = rest.join(' ');
+            setFormData({
+                username: editingUser.username || '',
+                firstName,
+                lastName,
+                email: editingUser.email,
+                role: editingUser.role,
+                status: editingUser.status,
+                phone: editingUser.phone || '',
+                hireDate: (editingUser.hireDate || new Date().toISOString()).split('T')[0],
+                password: '',
+            });
+        } else {
+            setFormData({
+                username: '',
+                firstName: '',
+                lastName: '',
+                email: '',
+                role: 'cashier',
+                status: 'active',
+                phone: '',
+                hireDate: new Date().toISOString().split('T')[0],
+                password: '',
+            });
+        }
+        setErrors({});
+    }, [editingUser, isOpen]);
 
-  // Validation function
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    if (!formData.name.trim()) newErrors.name = "Name is required";
-    if (!formData.email.trim()) newErrors.email = "Email is required";
-    if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Email is invalid";
-    if (!formData.hireDate) newErrors.hireDate = "Hire date is required";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+	const validateForm = () => {
+		const newErrors: Record<string, string> = {};
 
-  // Form submission handler
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return; // Don't proceed if there are validation errors
+		if (!formData.username.trim()) {
+			newErrors.username = 'Username is required';
+		}
 
-    // Include createdAt in the user data if it is editing an existing user
-    const userData = {
-      ...formData,
-      phone: formData.phone || "", // Ensure phone is always a string, even if it's empty
-      hireDate: formData.hireDate, // Already in the correct format
-      createdAt: editingUser ? editingUser.createdAt : new Date().toISOString(), // Handle missing createdAt
-    };
+		if (!formData.firstName.trim()) {
+			newErrors.firstName = 'First name is required';
+		}
 
-    onSave(userData);
-    onClose(); // Close the modal after saving
-  };
+		if (!formData.lastName.trim()) {
+			newErrors.lastName = 'Last name is required';
+		}
 
-  // Handle input field changes
-  const handleInputChange = (field: string, value: string) => {
-    if (field === "status") {
-      setFormData((prev) => ({
-        ...prev,
-        [field]: value as "active" | "inactive", // Type-cast value for status
-      }));
-    } else {
-      setFormData((prev) => ({ ...prev, [field]: value }));
-    }
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" })); // Clear error if the user corrects it
-  };
+		if (!formData.email.trim()) {
+			newErrors.email = 'Email is required';
+		} else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+			newErrors.email = 'Email is invalid';
+		}
 
-  if (!isOpen) return null; // If the modal is not open, return null
+        if (!formData.hireDate) {
+            newErrors.hireDate = 'Hire date is required';
+        }
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
-      <div className="bg-white w-[400px] p-6 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-semibold mb-4">{editingUser ? "Edit User" : "Add New User"}</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium">Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => handleInputChange("name", e.target.value)}
-              placeholder="Enter name"
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
-            {errors.name && <p className="text-red-600 text-sm">{errors.name}</p>}
-          </div>
+		setErrors(newErrors);
+		return Object.keys(newErrors).length === 0;
+	};
 
-          <div>
-            <label className="block text-sm font-medium">Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
-              placeholder="Enter email"
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
-            {errors.email && <p className="text-red-600 text-sm">{errors.email}</p>}
-          </div>
+	const handleSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		
+		if (!validateForm()) {
+			return;
+		}
 
-          <div>
-            <label className="block text-sm font-medium">Phone</label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => handleInputChange("phone", e.target.value)}
-              placeholder="Enter phone number"
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
-          </div>
+        const userData = {
+            email: formData.email,
+            username: formData.username,
+            password: formData.password || undefined,
+            name: [formData.firstName, formData.lastName].filter(Boolean).join(' ').trim(),
+            role: formData.role,
+            status: formData.status,
+            phone: formData.phone || undefined,
+            hireDate: formData.hireDate || undefined,
+        } as const;
 
-          <div>
-            <label className="block text-sm font-medium">Role</label>
-            <select
-              value={formData.role}
-              onChange={(e) => handleInputChange("role", e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            >
-              <option value="admin">Admin</option>
-              <option value="cashier">Cashier</option>
-              <option value="barista">Barista</option>
-            </select>
-          </div>
+        onSave(userData as any);
+		onClose();
+	};
 
-          <div>
-            <label className="block text-sm font-medium">Status</label>
-            <div className="flex gap-4">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  value="active"
-                  checked={formData.status === "active"}
-                  onChange={(e) => handleInputChange("status", e.target.value)}
-                  className="mr-2"
-                />
-                Active
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  value="inactive"
-                  checked={formData.status === "inactive"}
-                  onChange={(e) => handleInputChange("status", e.target.value)}
-                  className="mr-2"
-                />
-                Inactive
-              </label>
-            </div>
-          </div>
+	const handleInputChange = (field: string, value: string) => {
+		setFormData(prev => ({ ...prev, [field]: value }));
+		if (errors[field]) {
+			setErrors(prev => ({ ...prev, [field]: '' }));
+		}
+	};
 
-          <div>
-            <label className="block text-sm font-medium">Hire Date</label>
-            <input
-              type="date"
-              value={formData.hireDate}
-              onChange={(e) => handleInputChange("hireDate", e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
-            {errors.hireDate && <p className="text-red-600 text-sm">{errors.hireDate}</p>}
-          </div>
+	const footer = (
+		<>
+			<Button variant="secondary" onClick={onClose}>
+				Cancel
+			</Button>
+            <Button type="button" onClick={() => formRef.current?.requestSubmit()}>
+				{editingUser ? 'Update User' : 'Add User'}
+			</Button>
+		</>
+	);
 
-          <div className="flex justify-end gap-4 mt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-300 rounded-md text-sm font-medium text-gray-700"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium"
-            >
-              {editingUser ? "Update User" : "Add User"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+	return (
+		<Modal
+			isOpen={isOpen}
+			onClose={onClose}
+			title={editingUser ? 'Edit User' : 'Add New User'}
+			size="md"
+			footer={footer}
+		>
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+				<FormField label="Username" required error={errors.username}>
+					<Input
+						type="text"
+						value={formData.username}
+						onChange={(e) => handleInputChange('username', e.target.value)}
+						placeholder="Enter username"
+						icon={User}
+						error={!!errors.username}
+					/>
+				</FormField>
+
+				<div className="grid grid-cols-2 gap-4">
+					<FormField label="First Name" required error={errors.firstName}>
+						<Input
+							type="text"
+							value={formData.firstName}
+							onChange={(e) => handleInputChange('firstName', e.target.value)}
+							placeholder="Enter first name"
+							icon={User}
+							error={!!errors.firstName}
+						/>
+					</FormField>
+
+					<FormField label="Last Name" required error={errors.lastName}>
+						<Input
+							type="text"
+							value={formData.lastName}
+							onChange={(e) => handleInputChange('lastName', e.target.value)}
+							placeholder="Enter last name"
+							icon={User}
+							error={!!errors.lastName}
+						/>
+					</FormField>
+				</div>
+
+                <FormField label="Email" required error={errors.email}>
+					<Input
+						type="email"
+						value={formData.email}
+						onChange={(e) => handleInputChange('email', e.target.value)}
+						placeholder="Enter email address"
+						icon={Mail}
+						error={!!errors.email}
+					/>
+				</FormField>
+
+                {!editingUser && (
+                    <FormField label="Password">
+                        <Input
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => handleInputChange('password', e.target.value)}
+                            placeholder="Temporary password (optional)"
+                        />
+                    </FormField>
+                )}
+
+				<FormField label="Phone Number">
+					<Input
+						type="tel"
+						value={formData.phone}
+						onChange={(e) => handleInputChange('phone', e.target.value)}
+						placeholder="Enter phone number"
+						icon={Phone}
+					/>
+				</FormField>
+
+				<FormField label="Role" required>
+					<Select
+						value={formData.role}
+						onChange={(e) => handleInputChange('role', e.target.value)}
+						options={userRoles.map(role => ({ value: role.value, label: role.label }))}
+						icon={Shield}
+					/>
+				</FormField>
+
+				<FormField label="Status" required>
+					<div className="flex gap-4">
+						<label className="flex items-center">
+							<input
+								type="radio"
+								value="active"
+								checked={formData.status === 'active'}
+								onChange={(e) => handleInputChange('status', e.target.value)}
+								className="mr-2 text-[#776B5D] focus:ring-[#776B5D]"
+							/>
+							<span className="text-[#776B5D]">Active</span>
+						</label>
+						<label className="flex items-center">
+							<input
+								type="radio"
+								value="inactive"
+								checked={formData.status === 'inactive'}
+								onChange={(e) => handleInputChange('status', e.target.value)}
+								className="mr-2 text-[#776B5D] focus:ring-[#776B5D]"
+							/>
+							<span className="text-[#776B5D]">Inactive</span>
+						</label>
+					</div>
+				</FormField>
+
+				<FormField label="Hire Date" required error={errors.hireDate}>
+					<Input
+						type="date"
+						value={formData.hireDate}
+						onChange={(e) => handleInputChange('hireDate', e.target.value)}
+						icon={Calendar}
+						error={!!errors.hireDate}
+					/>
+				</FormField>
+			</form>
+		</Modal>
+	);
 };
 
 export default UserModal;

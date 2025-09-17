@@ -63,6 +63,7 @@ export default function CashierDashboard() {
   
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [topSellingItems, setTopSellingItems] = useState<TopSellingItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -299,12 +300,36 @@ export default function CashierDashboard() {
               </Button>
             </div>
             <div className="space-y-3">
-              {recentOrders.length === 0 ? (
+              <div className="mb-3">
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search recent orders (id, name, payment)"
+                  className="w-full px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
+                />
+              </div>
+              {recentOrders.filter(o => {
+                if (!searchTerm.trim()) return true;
+                const q = searchTerm.toLowerCase();
+                return (
+                  String(o.id).includes(q) ||
+                  (o.customerName || '').toLowerCase().includes(q) ||
+                  (o.paymentMethod || '').toLowerCase().includes(q)
+                );
+              }).length === 0 ? (
                 <div className="py-8 text-[#776B5D]/70 text-center">
                   No recent orders found.
                 </div>
               ) : (
-                recentOrders.map((order) => (
+                recentOrders.filter(o => {
+                  if (!searchTerm.trim()) return true;
+                  const q = searchTerm.toLowerCase();
+                  return (
+                    String(o.id).includes(q) ||
+                    (o.customerName || '').toLowerCase().includes(q) ||
+                    (o.paymentMethod || '').toLowerCase().includes(q)
+                  );
+                }).map((order) => (
                   <div key={order.id} className="flex justify-between items-center p-3 bg-[#F3EEEA]/50 rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
