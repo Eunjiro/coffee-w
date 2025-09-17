@@ -356,17 +356,27 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
                     </Section>
                 ) : (
                     <Section title="Cups & Prices">
-                        {["small", "medium", "large"].map(size => (sizesState as any)[size] && (
-                            <Section key={size} title={(size as string).charAt(0).toUpperCase() + (size as string).slice(1)}>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <select value={(cupSelections as any)[size].cupId || ""} onChange={e => handleCupChange(size as any, "cupId", e.target.value)} className="w-full px-3 py-2 border border-[#B0A695] rounded-lg">
-                                        <option value="">Select Cup</option>
-                                        {cups.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
-                                    <Input type="number" value={(cupSelections as any)[size].price} onChange={e => handleCupChange(size as any, "price", e.target.value)} placeholder="Price" />
-                                </div>
-                            </Section>
-                        ))}
+                        {(["small", "medium", "large"] as SizeKey[]).map(size =>
+                            sizesState[size] && (
+                                <Section key={size} title={(size as string).charAt(0).toUpperCase() + (size as string).slice(1)}>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <select
+                                            value={cupSelections[size].cupId || ""}
+                                            onChange={e => handleCupChange(size, "cupId", e.target.value)}
+                                            className="w-full px-3 py-2 border border-[#B0A695] rounded-lg"
+                                        >
+                                            <option value="">Select Cup</option>
+                                            {cups.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                        <Input
+                                            type="number"
+                                            value={cupSelections[size].price}
+                                            onChange={e => handleCupChange(size, "price", e.target.value)}
+                                            placeholder="Price"
+                                        />
+                                    </div>
+                                </Section>
+                            ))}
                     </Section>
                 )}
 
@@ -377,11 +387,20 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
                             <Section key={size} title={(size as string).charAt(0).toUpperCase() + (size as string).slice(1)}>
                                 {(ingredientsState as any)[size].map((ing: any, i: number) => (
                                     <div key={ing.id} className="grid grid-cols-2 gap-4 mb-2">
-                                        <select value={ing.ingredientId} onChange={e => handleIngredientChange(size as any, i, "ingredientId", e.target.value)} className="w-full px-3 py-2 border border-[#B0A695] rounded-lg">
+                                        <select
+                                            value={ing.ingredientId}
+                                            onChange={e => handleIngredientChange(size as SizeKey, i, "ingredientId", e.target.value)}
+                                            className="w-full px-3 py-2 border border-[#B0A695] rounded-lg"
+                                        >
                                             <option value="">Select Ingredient</option>
                                             {ingredients.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
                                         </select>
-                                        <Input type="text" value={ing.quantity} onChange={e => handleIngredientChange(size as any, i, "quantity", (e.target as any).value)} placeholder="Quantity" />
+                                        <Input
+                                            type="text"
+                                            value={ing.quantity}
+                                            onChange={e => handleIngredientChange(size as SizeKey, i, "quantity", e.target.value)}
+                                            placeholder="Quantity (e.g., 200ml, 100g)"
+                                        />
                                     </div>
                                 ))}
                                 <button type="button" onClick={() => handleAddIngredient(size as any)} className="flex items-center gap-1 mt-2 text-sm text-[#776B5D] hover:text-[#776B5D]/80">

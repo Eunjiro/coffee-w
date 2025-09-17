@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 // POST create a new addon
 export async function POST(req: NextRequest) {
   const data = await req.json();
-  const { name, category, price, qtyPerPack, packagePrice, ingredients, orderId } = data;
+  const { name, category, price, ingredients, orderId } = data;
 
   if (!ingredients || ingredients.length === 0) {
     return NextResponse.json({ message: "At least one ingredient is required" }, { status: 400 });

@@ -384,7 +384,11 @@ const Sales: React.FC = () => {
               <select
                 className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
+                onChange={(e) =>
+                  setStatusFilter(
+                    e.target.value as 'all' | 'completed' | 'refunded' | 'cancelled' | 'pending' | 'paid'
+                  )
+                }
               >
                 {(['all', 'completed', 'paid', 'pending', 'cancelled', 'refunded'] as const).map(s => (
                   <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>
@@ -456,9 +460,9 @@ const Sales: React.FC = () => {
                         <td className="px-4 py-3">
                           <span
                             className={`px-2 py-1 rounded-full text-xs font-medium ${sale.paymentMethod === 'cash' ? 'bg-green-100 text-green-700' :
-                                sale.paymentMethod === 'card' ? 'bg-purple-100 text-purple-700' :
-                                  sale.paymentMethod === 'gcash' ? 'bg-blue-100 text-blue-700' :
-                                    'bg-gray-100 text-gray-700'
+                              sale.paymentMethod === 'card' ? 'bg-purple-100 text-purple-700' :
+                                sale.paymentMethod === 'gcash' ? 'bg-blue-100 text-blue-700' :
+                                  'bg-gray-100 text-gray-700'
                               }`}
                           >
                             {sale.paymentMethod === 'gcash' ? 'GCash' :
@@ -469,14 +473,14 @@ const Sales: React.FC = () => {
                         <td className="px-4 py-3">
                           <span
                             className={`px-2 py-1 rounded-full text-xs font-medium ${sale.status === 'completed'
-                                ? 'bg-green-100 text-green-700'
-                                : sale.status === 'paid'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : sale.status === 'pending'
-                                    ? 'bg-yellow-100 text-yellow-700'
-                                    : sale.status === 'refunded'
-                                      ? 'bg-orange-100 text-orange-700'
-                                      : 'bg-red-100 text-red-700'
+                              ? 'bg-green-100 text-green-700'
+                              : sale.status === 'paid'
+                                ? 'bg-blue-100 text-blue-700'
+                                : sale.status === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : sale.status === 'refunded'
+                                    ? 'bg-orange-100 text-orange-700'
+                                    : 'bg-red-100 text-red-700'
                               }`}
                           >
                             {sale.status.charAt(0).toUpperCase() + sale.status.slice(1)}

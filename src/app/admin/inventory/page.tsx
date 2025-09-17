@@ -165,7 +165,7 @@ export default function InventoryPage() {
       await fetchData();
     } catch (err) {
       console.error(err);
-      (window as any).toast?.error?.("Failed to add unit");
+      window.toast?.error?.("Failed to add unit");
     }
   };
 
@@ -419,13 +419,7 @@ export default function InventoryPage() {
                   : "bg-transparent text-[#776B5D]"
                   }`}
               >
-                {/* @ts-ignore */}
-                {category.icon && (
-                  <category.icon
-                    className="w-5 h-5"
-                    color={filterCategory === category.value ? "#F3EEEA" : "#776B5D"}
-                  />
-                )}
+                {category.icon && <category.icon className="w-5 h-5" color={filterCategory === category.value ? "#F3EEEA" : "#776B5D"} />}
                 <span>{category.label}</span>
               </button>
             </div>

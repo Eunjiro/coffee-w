@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { orders, orderitems, users, menu, orderitemaddons } from "@prisma/client";
 
 type RecentOrderItem = {
   name: string;
@@ -19,8 +18,6 @@ type RecentOrder = {
 };
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  // const filter = searchParams.get("filter") || "today"; // ❌ unused → removed
 
   const now = new Date();
 
