@@ -1,11 +1,12 @@
 import React, { useId } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
+// FormField component with children typed as ReactElement to handle cloning safely
 interface FormFieldProps {
   label: string;
   error?: string;
   required?: boolean;
-  children: React.ReactNode;
+  children: React.ReactElement;  // Ensure children is a React element (not just ReactNode)
   className?: string;
 }
 
@@ -19,9 +20,10 @@ const FormField: React.FC<FormFieldProps> = ({
   const autoId = useId();
   const fieldId = `ff-${autoId}`;
 
+  // Ensure children is a valid React element that can accept 'id' and 'aria-labelledby'
   const child = React.isValidElement(children)
     ? React.cloneElement(children as React.ReactElement<any>, {
-        id: (children as any)?.props?.id ?? fieldId,
+        id: (children as any).props?.id ?? fieldId,
         'aria-labelledby': `${fieldId}-label`,
       })
     : children;
@@ -39,6 +41,7 @@ const FormField: React.FC<FormFieldProps> = ({
   );
 };
 
+// Input Component
 interface InputProps {
   type?: string;
   value: string;
@@ -87,6 +90,7 @@ export const Input: React.FC<InputProps> = ({
   );
 };
 
+// Select Component
 interface SelectProps {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
@@ -140,6 +144,7 @@ export const Select: React.FC<SelectProps> = ({
   );
 };
 
+// Textarea Component
 interface TextareaProps {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;

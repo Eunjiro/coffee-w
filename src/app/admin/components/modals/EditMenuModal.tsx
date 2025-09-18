@@ -7,17 +7,20 @@ import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import FormField, { Input, Select } from "../ui/FormField";
 
+// Ingredient type for managing ingredients
 export type Ingredient = {
     id: string;
     ingredientId: number;
     quantity: string;
 };
 
+// CupSelection type for managing cup options
 export type CupSelection = {
     cupId: number | null;
     price: string;
 };
 
+// MenuItem type for the menu items data structure
 export interface MenuItem {
     id: number;
     name: string;
@@ -37,17 +40,20 @@ export interface MenuItem {
     };
 }
 
+// Cup interface for managing cup options (used in props)
 interface Cup {
     id: number;
     name: string;
 }
 
+// IngredientOption interface for handling ingredient options
 export interface IngredientOption {
     id: number;
     name: string;
     unit?: string;
 }
 
+// Props for the EditMenuModal component
 interface EditMenuModalProps {
     open: boolean;
     item: MenuItem | null;
@@ -69,13 +75,10 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
     onSave,
     onDelete,
 }) => {
+    // State for managing form and related fields
     const [form, setForm] = useState<MenuItem | null>(item);
-    const [imagePreview, setImagePreview] = useState<string | null>(
-        item?.image || null
-    );
-    const [addonPrice, setAddonPrice] = useState<string>(
-        item?.type === "ADDON" ? String(item?.sizes?.[0]?.price ?? 0) : ""
-    );
+    const [imagePreview, setImagePreview] = useState<string | null>(item?.image || null);
+    const [addonPrice, setAddonPrice] = useState<string>(item?.type === "ADDON" ? String(item?.sizes?.[0]?.price ?? 0) : "");
     const formRef = useRef<HTMLFormElement | null>(null);
 
     const [sizesState, setSizesState] = useState<Record<SizeKey, boolean>>({
@@ -84,17 +87,13 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
         large: false,
     });
 
-    const [cupSelections, setCupSelections] = useState<
-        Record<SizeKey, CupSelection>
-    >({
+    const [cupSelections, setCupSelections] = useState<Record<SizeKey, CupSelection>>({
         small: { cupId: null, price: "" },
         medium: { cupId: null, price: "" },
         large: { cupId: null, price: "" },
     });
 
-    const [ingredientsState, setIngredientsState] = useState<
-        Record<SizeKey, Ingredient[]>
-    >({
+    const [ingredientsState, setIngredientsState] = useState<Record<SizeKey, Ingredient[]>>({
         small: [],
         medium: [],
         large: [],
@@ -105,9 +104,7 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
         if (!item) return;
         setForm(item);
         setImagePreview(item.image || null);
-        setAddonPrice(
-            item.type === "ADDON" ? String(item.sizes?.[0]?.price ?? 0) : ""
-        );
+        setAddonPrice(item.type === "ADDON" ? String(item.sizes?.[0]?.price ?? 0) : "");
 
         setSizesState({
             small: item.sizes.some((s) => s.label.toLowerCase() === "small"),
@@ -120,6 +117,7 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
             medium: { cupId: null, price: "" },
             large: { cupId: null, price: "" },
         };
+
         item.sizes.forEach((s) => {
             const sizeKey = s.label.toLowerCase() as SizeKey;
             cupMap[sizeKey] = { cupId: s.cupId || null, price: s.price.toString() };
@@ -154,6 +152,7 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
 
     if (!open || !form) return null;
 
+    // Handle form field changes
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
     ) => {
@@ -211,6 +210,7 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
         setSizesState(prev => ({ ...prev, [size]: !prev[size] }));
     };
 
+    // Handle form submission
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!form) return;
@@ -219,47 +219,48 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
 
         const updatedForm: MenuItem = isAddon
             ? {
-                ...form,
-                sizes: [
-                    {
-                        id: form.sizes?.[0]?.id || 0,
-                        label: "Single",
-                        price: parseFloat(addonPrice) || 0,
-                        cupId: null,
-                    },
-                ],
-                ingredients: { small: [], medium: [], large: [] },
-            }
+                  ...form,
+                  sizes: [
+                      {
+                          id: form.sizes?.[0]?.id || 0,
+                          label: "Single",
+                          price: parseFloat(addonPrice) || 0,
+                          cupId: null,
+                      },
+                  ],
+                  ingredients: { small: [], medium: [], large: [] },
+              }
             : {
-                ...form,
-                sizes: (["small", "medium", "large"] as SizeKey[])
-                    .filter((size) => sizesState[size])
-                    .map((size) => ({
-                        id: form.sizes.find((s) => s.label.toLowerCase() === size)?.id || 0,
-                        label: size,
-                        price: parseFloat(cupSelections[size].price) || 0,
-                        cupId: cupSelections[size].cupId || null,
-                    })),
-                ingredients: {
-                    small: ingredientsState.small.map((i) => ({
-                        ingredientId: i.ingredientId,
-                        quantity: parseFloat(i.quantity) || 0,
-                    })),
-                    medium: ingredientsState.medium.map((i) => ({
-                        ingredientId: i.ingredientId,
-                        quantity: parseFloat(i.quantity) || 0,
-                    })),
-                    large: ingredientsState.large.map((i) => ({
-                        ingredientId: i.ingredientId,
-                        quantity: parseFloat(i.quantity) || 0,
-                    })),
-                },
-            };
+                  ...form,
+                  sizes: (["small", "medium", "large"] as SizeKey[])
+                      .filter((size) => sizesState[size])
+                      .map((size) => ({
+                          id: form.sizes.find((s) => s.label.toLowerCase() === size)?.id || 0,
+                          label: size,
+                          price: parseFloat(cupSelections[size].price) || 0,
+                          cupId: cupSelections[size].cupId || null,
+                      })),
+                  ingredients: {
+                      small: ingredientsState.small.map((i) => ({
+                          ingredientId: i.ingredientId,
+                          quantity: parseFloat(i.quantity) || 0,
+                      })),
+                      medium: ingredientsState.medium.map((i) => ({
+                          ingredientId: i.ingredientId,
+                          quantity: parseFloat(i.quantity) || 0,
+                      })),
+                      large: ingredientsState.large.map((i) => ({
+                          ingredientId: i.ingredientId,
+                          quantity: parseFloat(i.quantity) || 0,
+                      })),
+                  },
+              };
 
         onSave(updatedForm);
         onClose();
     };
 
+    // Section component for grouping form fields
     const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
         title,
         children,
@@ -270,6 +271,7 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
         </div>
     );
 
+    // Footer for the modal with buttons
     const footer = (
         <>
             <Button variant="secondary" onClick={onClose}>
@@ -333,7 +335,6 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
                             onChange={e => setForm(prev => prev ? { ...prev, name: e.target.value } : null)}
                             placeholder="Menu name"
                         />
-
                     </FormField>
                     <FormField label="Type" required>
                         <Select
@@ -343,10 +344,9 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
                                 { label: "Coffee", value: "COFFEE" },
                                 { label: "Non-Coffee", value: "NON-COFFEE" },
                                 { label: "Meal", value: "MEAL" },
-                                { label: "Addon", value: "ADDON" }
+                                { label: "Addon", value: "ADDON" },
                             ]}
                         />
-
                     </FormField>
                 </div>
 
@@ -354,7 +354,14 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
                 <Section title="Status">
                     {["AVAILABLE", "UNAVAILABLE", "HIDDEN"].map(status => (
                         <label key={status} className="flex items-center gap-2 cursor-pointer mr-4">
-                            <input type="radio" name="status" value={status} checked={form.status === status} onChange={handleChange} className="rounded w-4 h-4 text-[#776B5D]" />
+                            <input
+                                type="radio"
+                                name="status"
+                                value={status}
+                                checked={form.status === status}
+                                onChange={handleChange}
+                                className="rounded w-4 h-4 text-[#776B5D]"
+                            />
                             <span className="text-[#776B5D]">{status.charAt(0) + status.slice(1).toLowerCase()}</span>
                         </label>
                     ))}
@@ -440,4 +447,3 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
 };
 
 export default EditMenuModal;
-

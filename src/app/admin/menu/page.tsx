@@ -24,6 +24,18 @@ interface IngredientInput {
   quantity: number;
 }
 
+interface Size {
+  id: number;
+  label: string;
+  price: number;
+  cupId?: number | null;
+}
+
+interface Ingredient {
+  ingredientId: number;
+  quantity: number;
+}
+
 // ---- Component ----
 export default function AdminMenuPage() {
   const { data: session, status } = useSession();
@@ -91,22 +103,22 @@ export default function AdminMenuPage() {
         image: item.image,
         type: item.type as ModalMenuItem["type"],
         status: item.status,
-        sizes: (full?.sizes ?? item.sizes).map((s: any) => ({
+        sizes: (full?.sizes ?? item.sizes).map((s: Size) => ({
           id: s.id,
           label: s.label,
           price: s.price,
           cupId: "cupId" in s ? (s as { cupId?: number | null }).cupId ?? null : null,
         })),
         ingredients: {
-          small: (full?.ingredients?.small ?? []).filter((i: any) => i.ingredientId != null).map((i: any) => ({
+          small: (full?.ingredients?.small ?? []).filter((i: Ingredient) => i.ingredientId != null).map((i: Ingredient) => ({
             ingredientId: Number(i.ingredientId),
             quantity: Number(i.quantity),
           })),
-          medium: (full?.ingredients?.medium ?? []).filter((i: any) => i.ingredientId != null).map((i: any) => ({
+          medium: (full?.ingredients?.medium ?? []).filter((i: Ingredient) => i.ingredientId != null).map((i: Ingredient) => ({
             ingredientId: Number(i.ingredientId),
             quantity: Number(i.quantity),
           })),
-          large: (full?.ingredients?.large ?? []).filter((i: any) => i.ingredientId != null).map((i: any) => ({
+          large: (full?.ingredients?.large ?? []).filter((i: Ingredient) => i.ingredientId != null).map((i: Ingredient) => ({
             ingredientId: Number(i.ingredientId),
             quantity: Number(i.quantity),
           })),
@@ -123,7 +135,7 @@ export default function AdminMenuPage() {
         image: item.image,
         type: item.type as ModalMenuItem["type"],
         status: item.status,
-        sizes: item.sizes.map(s => ({ id: s.id, label: s.label, price: s.price, cupId: (s as any).cupId ?? null })),
+        sizes: item.sizes.map(s => ({ id: s.id, label: s.label, price: s.price, cupId: (s as any).cupId ?? null })), // Ensure the types match for `cupId`
         ingredients: { small: [], medium: [], large: [] },
       };
       setSelectedItem(fallback);
