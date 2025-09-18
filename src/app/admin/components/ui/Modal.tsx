@@ -42,6 +42,7 @@ const Modal: React.FC<ModalProps> = ({
         <div className="flex items-center justify-between p-6 border-b border-[#B0A695]/20 flex-shrink-0">
           <h2 className="text-xl font-semibold text-[#776B5D]">{title}</h2>
           <button
+            type="button"
             onClick={onClose}
             className="p-2 hover:bg-[#F3EEEA] rounded-lg transition-colors"
           >

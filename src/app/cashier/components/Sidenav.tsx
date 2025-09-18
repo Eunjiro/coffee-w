@@ -15,7 +15,7 @@ export default function CashierSidenav({ open, setOpen }: { open: boolean; setOp
       {/* Overlay */}
       {open && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setOpen(false)} />}
 
-      {/* Sidebar */}
+      {/* Sidebar (expanded) */}
       <motion.aside
         initial={{ x: -300 }}
         animate={{ x: open ? 0 : -300 }}
@@ -80,6 +80,29 @@ export default function CashierSidenav({ open, setOpen }: { open: boolean; setOp
           </div>
         </div>
       </motion.aside>
+
+      {/* Mini Sidebar (icons only) */}
+      <aside className="hidden lg:flex fixed top-0 left-0 z-40 h-full w-16 bg-[#776B5D] text-[#F3EEEA] flex-col items-center py-4">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="mb-4 p-2 rounded-md bg-[#B0A695] hover:bg-[#B0A695]/80"
+          aria-label="Open sidebar"
+        >
+          <LayoutDashboard className="w-5 h-5 text-[#F3EEEA]" />
+        </button>
+        <nav className="flex flex-col items-center gap-4 mt-2">
+          <Link href="/cashier/pos" className="p-2 rounded-md hover:bg-[#B0A695]/50" title="POS">
+            <ShoppingCart className="w-5 h-5" />
+          </Link>
+          <Link href="/cashier/dashboard" className="p-2 rounded-md hover:bg-[#B0A695]/50" title="Dashboard">
+            <LayoutDashboard className="w-5 h-5" />
+          </Link>
+          <Link href="/cashier/orders" className="p-2 rounded-md hover:bg-[#B0A695]/50" title="Orders">
+            <ClipboardList className="w-5 h-5" />
+          </Link>
+        </nav>
+      </aside>
     </>
   );
 }

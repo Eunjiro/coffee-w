@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
 interface FormFieldProps {
@@ -16,12 +16,22 @@ const FormField: React.FC<FormFieldProps> = ({
   children,
   className = ''
 }) => {
+  const autoId = useId();
+  const fieldId = `ff-${autoId}`;
+
+  const child = React.isValidElement(children)
+    ? React.cloneElement(children as React.ReactElement<any>, {
+        id: (children as any)?.props?.id ?? fieldId,
+        'aria-labelledby': `${fieldId}-label`,
+      })
+    : children;
+
   return (
     <div className={`space-y-2 ${className}`}>
-      <label className="block text-sm font-medium text-[#776B5D]">
+      <label id={`${fieldId}-label`} htmlFor={fieldId} className="block text-sm font-medium text-[#776B5D]">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
-      {children}
+      {child}
       {error && (
         <p className="text-red-500 text-xs mt-1">{error}</p>
       )}
@@ -38,6 +48,8 @@ interface InputProps {
   icon?: LucideIcon;
   error?: boolean;
   className?: string;
+  id?: string;
+  name?: string;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -48,7 +60,9 @@ export const Input: React.FC<InputProps> = ({
   disabled = false,
   icon: Icon,
   error = false,
-  className = ''
+  className = '',
+  id,
+  name,
 }) => {
   const baseClasses = 'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#776B5D] focus:border-transparent text-[#776B5D] placeholder:text-[#776B5D]/50';
   const errorClasses = error ? 'border-red-500' : 'border-[#B0A695]';
@@ -65,6 +79,8 @@ export const Input: React.FC<InputProps> = ({
         onChange={onChange}
         placeholder={placeholder}
         disabled={disabled}
+        id={id}
+        name={name}
         className={`${baseClasses} ${errorClasses} ${iconClasses} ${className}`}
       />
     </div>
@@ -80,6 +96,8 @@ interface SelectProps {
   icon?: LucideIcon;
   error?: boolean;
   className?: string;
+  id?: string;
+  name?: string;
 }
 
 export const Select: React.FC<SelectProps> = ({
@@ -90,7 +108,9 @@ export const Select: React.FC<SelectProps> = ({
   disabled = false,
   icon: Icon,
   error = false,
-  className = ''
+  className = '',
+  id,
+  name,
 }) => {
   const baseClasses = 'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#776B5D] focus:border-transparent appearance-none bg-white text-[#776B5D]';
   const errorClasses = error ? 'border-red-500' : 'border-[#B0A695]';
@@ -105,6 +125,8 @@ export const Select: React.FC<SelectProps> = ({
         value={value}
         onChange={onChange}
         disabled={disabled}
+        id={id}
+        name={name}
         className={`${baseClasses} ${errorClasses} ${iconClasses} ${className}`}
       >
         {placeholder && <option value="">{placeholder}</option>}
@@ -127,6 +149,8 @@ interface TextareaProps {
   icon?: LucideIcon;
   error?: boolean;
   className?: string;
+  id?: string;
+  name?: string;
 }
 
 export const Textarea: React.FC<TextareaProps> = ({
@@ -137,7 +161,9 @@ export const Textarea: React.FC<TextareaProps> = ({
   disabled = false,
   icon: Icon,
   error = false,
-  className = ''
+  className = '',
+  id,
+  name,
 }) => {
   const baseClasses = 'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#776B5D] focus:border-transparent text-[#776B5D] placeholder:text-[#776B5D]/50 resize-none';
   const errorClasses = error ? 'border-red-500' : 'border-[#B0A695]';
@@ -154,6 +180,8 @@ export const Textarea: React.FC<TextareaProps> = ({
         placeholder={placeholder}
         rows={rows}
         disabled={disabled}
+        id={id}
+        name={name}
         className={`${baseClasses} ${errorClasses} ${iconClasses} ${className}`}
       />
     </div>

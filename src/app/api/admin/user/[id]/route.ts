@@ -4,7 +4,7 @@ import { users_role, users_status } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 // Define types for params
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 // Define type for update body (input from API)
 interface UpdateUserBody {
@@ -21,7 +21,7 @@ interface UpdateUserBody {
 // GET single user
 export async function GET(_: Request, { params }: Params) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const user = await prisma.users.findUnique({
       where: { id: parseInt(id, 10) },
       select: {
@@ -63,7 +63,7 @@ export async function GET(_: Request, { params }: Params) {
 // UPDATE user
 export async function PUT(req: Request, { params }: Params) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body: UpdateUserBody = await req.json();
 
     const {
@@ -118,7 +118,7 @@ export async function PUT(req: Request, { params }: Params) {
 // DELETE user
 export async function DELETE(_: Request, { params }: Params) {
   try {
-    const { id } = params;
+    const { id } = await params;
     await prisma.users.delete({
       where: { id: parseInt(id, 10) },
     });

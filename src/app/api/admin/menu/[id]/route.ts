@@ -57,21 +57,22 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     if (!menu) return NextResponse.json({ error: "Menu not found" }, { status: 404 });
 
+    // Normalize sizes to plain JSON-safe values (avoid Prisma Decimal objects)
+    const sizes = (menu.sizes || []).map((size) => ({
+      id: size.id,
+      label: size.label,
+      price: Number(size.price ?? 0),
+      cupId: size.cupId ?? null,
+    }));
+
     const result = {
-      ...menu,
-      sizes: (menu.sizes || []).map(size => ({
-        ...size,
-        recipes: (size.recipes || []).map(recipe => ({
-          ...recipe,
-          recipeingredients: (recipe.recipeingredients || []).map(ri => ({
-            id: ri.ingredients?.id ?? null,
-            name: ri.ingredients?.name ?? "Unknown",
-            quantity: ri.qtyNeeded ?? 0,
-            recipeId: recipe.id,
-            sizeId: size.id,
-          })),
-        })),
-      })),
+      id: menu.id,
+      name: menu.name,
+      image: menu.image ?? "",
+      type: menu.type,
+      status: menu.status,
+      category: menu.category ?? null,
+      sizes,
       ingredients: {
         small: [] as IngredientItem[],
         medium: [] as IngredientItem[],
@@ -80,9 +81,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     };
 
     (menu.sizes || []).forEach(size => {
-      const key = size.label.toLowerCase() as "small" | "medium" | "large";
-      size.recipes.forEach(recipe => {
-        recipe.recipeingredients.forEach(ri => {
+      const label = (size.label || "").toLowerCase();
+      if (label !== "small" && label !== "medium" && label !== "large") {
+        return; // ignore non-standard labels like Single (addon)
+      }
+      const key = label as "small" | "medium" | "large";
+      (size.recipes || []).forEach((recipe) => {
+        (recipe.recipeingredients || []).forEach((ri) => {
           result.ingredients[key].push({
             ingredientId: ri.ingredients?.id ?? null,
             quantity: Number(ri.qtyNeeded ?? 0),
@@ -109,45 +114,84 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     const data: MenuInput = await req.json();
 
-    // Delete old sizes & recipes
-    const sizeIds = (await prisma.sizes.findMany({ where: { menuId }, select: { id: true } })).map(s => s.id);
-    if (sizeIds.length) await prisma.recipes.deleteMany({ where: { sizeId: { in: sizeIds } } });
-    await prisma.sizes.deleteMany({ where: { menuId } });
+    // Normalize label helper
+    const normalizeLabel = (label: string) =>
+      label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
 
-    // Update menu core fields
-    await prisma.menu.update({
-      where: { id: menuId },
-      data: {
-        name: data.name,
-        image: data.image ?? "",
-        type: data.type,
-        status: data.status,
-        category: data.category ?? null,
-      },
-    });
+    await prisma.$transaction(async (tx) => {
+      // Update base menu fields first
+      await tx.menu.update({
+        where: { id: menuId },
+        data: {
+          name: data.name,
+          image: data.image ?? "",
+          type: data.type,
+          status: data.status,
+          category: data.category ?? null,
+        },
+      });
 
-    // Recreate sizes & recipes
-    for (const s of data.sizes) {
-      const size = await prisma.sizes.create({ data: { label: s.label, price: s.price, menuId } });
+      // Map existing sizes by lowercase label
+      const existingSizes = await tx.sizes.findMany({
+        where: { menuId },
+        select: { id: true, label: true },
+      });
+      const existingByLabel = new Map(
+        existingSizes.map((s) => [s.label.toLowerCase(), s])
+      );
 
-      if (Array.isArray(s.ingredients) && s.ingredients.length) {
-        await prisma.recipes.create({
-          data: {
-            name: `Recipe for ${s.label}`,
-            menuId,
-            sizeId: size.id,
-            recipeingredients: {
-              create: s.ingredients
-                .filter(i => i.ingredientId && i.quantity)
-                .map(i => ({
-                  ingredientId: i.ingredientId,
-                  qtyNeeded: i.quantity,
-                })),
+      // Upsert sizes and replace recipes for each provided size
+      for (const s of data.sizes) {
+        const normalizedLabel = normalizeLabel(s.label);
+        const key = normalizedLabel.toLowerCase();
+        const existing = existingByLabel.get(key);
+
+        let sizeId: number;
+        if (existing) {
+          const updated = await tx.sizes.update({
+            where: { id: existing.id },
+            data: { label: normalizedLabel, price: s.price },
+          });
+          sizeId = updated.id;
+        } else {
+          const created = await tx.sizes.create({
+            data: { label: normalizedLabel, price: s.price, menuId },
+          });
+          sizeId = created.id;
+        }
+
+        // Replace recipes for this size
+        await tx.recipes.deleteMany({ where: { menuId, sizeId } });
+        if (Array.isArray(s.ingredients) && s.ingredients.length) {
+          await tx.recipes.create({
+            data: {
+              name: `Recipe for ${normalizedLabel}`,
+              menuId,
+              sizeId,
+              recipeingredients: {
+                create: s.ingredients
+                  .filter((i) => i.ingredientId && i.quantity)
+                  .map((i) => ({ ingredientId: i.ingredientId, qtyNeeded: i.quantity })),
+              },
             },
-          },
-        });
+          });
+        }
       }
-    }
+
+      // Remove sizes absent from payload only if not referenced by orders
+      const payloadKeys = new Set(
+        data.sizes.map((s) => normalizeLabel(s.label).toLowerCase())
+      );
+      for (const s of existingSizes) {
+        if (!payloadKeys.has(s.label.toLowerCase())) {
+          const referenced = await tx.orderitems.count({ where: { sizeId: s.id } });
+          if (referenced === 0) {
+            await tx.recipes.deleteMany({ where: { sizeId: s.id } });
+            await tx.sizes.delete({ where: { id: s.id } });
+          }
+        }
+      }
+    });
 
     const fullMenu = await prisma.menu.findUnique({
       where: { id: menuId },
@@ -176,10 +220,21 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const menuId = Number(id);
     if (isNaN(menuId)) throw new Error("Invalid menu ID");
 
-    const sizeIds = (await prisma.sizes.findMany({ where: { menuId }, select: { id: true } })).map(s => s.id);
-    if (sizeIds.length) await prisma.recipes.deleteMany({ where: { sizeId: { in: sizeIds } } });
-    await prisma.sizes.deleteMany({ where: { menuId } });
-    await prisma.menu.delete({ where: { id: menuId } });
+    // If referenced by order items, soft-hide instead of deleting
+    const references = await prisma.orderitems.count({ where: { menuId } });
+    if (references > 0) {
+      await prisma.menu.update({ where: { id: menuId }, data: { status: "HIDDEN" } });
+      return NextResponse.json({ message: "Menu is referenced by orders. Marked as HIDDEN." });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const sizeIds = (
+        await tx.sizes.findMany({ where: { menuId }, select: { id: true } })
+      ).map((s) => s.id);
+      if (sizeIds.length) await tx.recipes.deleteMany({ where: { sizeId: { in: sizeIds } } });
+      await tx.sizes.deleteMany({ where: { menuId } });
+      await tx.menu.delete({ where: { id: menuId } });
+    });
 
     return NextResponse.json({ message: "Menu deleted" });
   } catch (err: unknown) {

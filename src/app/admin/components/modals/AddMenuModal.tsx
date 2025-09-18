@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Plus, UploadCloud } from "lucide-react";
-import Image from "next/image"; // ✅ Use next/image
+import Image from "next/image";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import FormField, { Input, Select } from "../ui/FormField";

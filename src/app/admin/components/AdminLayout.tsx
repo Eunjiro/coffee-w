@@ -13,9 +13,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <Sidenav open={open} setOpen={setOpen} />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col lg:ml-16">
         <Header setOpen={setOpen} />
-        <main>{children}</main>
+        <main className="min-h-0 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

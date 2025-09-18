@@ -276,23 +276,6 @@ const Sales: React.FC = () => {
           </div>
         </div>
 
-        {/* Status filter */}
-        <select
-          className="px-3 py-2 border border-[#B0A695] rounded-lg text-[#776B5D]"
-          value={statusFilter}
-          onChange={(e) =>
-            setStatusFilter(
-              e.target.value as 'all' | 'completed' | 'refunded' | 'cancelled' | 'pending' | 'paid'
-            )
-          }
-        >
-          {(['all', 'completed', 'paid', 'pending', 'cancelled', 'refunded'] as const).map((s) => (
-            <option key={s} value={s}>
-              {s[0].toUpperCase() + s.slice(1)}
-            </option>
-          ))}
-        </select>
-
         {/* Key Metrics */}
         <div className="gap-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-8">
           <div className="bg-white shadow-sm p-6 rounded-xl">

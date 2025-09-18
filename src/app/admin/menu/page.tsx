@@ -79,29 +79,56 @@ export default function AdminMenuPage() {
     }
   }
 
-  // Convert API item to modal type for editing
-  const handleEditItem = (item: APIItem) => {
-    const normalizedItem: ModalMenuItem = {
-      id: item.id,
-      name: item.name,
-      image: item.image,
-      type: item.type as ModalMenuItem["type"],
-      status: item.status,
-      sizes: item.sizes.map(s => ({
-        id: s.id,
-        label: s.label,
-        price: s.price,
-        cupId: "cupId" in s ? (s as { cupId?: number | null }).cupId ?? null : null,
-      })),
-      ingredients: {
-        small: [],
-        medium: [],
-        large: [],
-      },
-    };
+  // Convert API item to modal type for editing with existing ingredients
+  const handleEditItem = async (item: APIItem) => {
+    try {
+      const res = await fetch(`/api/admin/menu/${item.id}`);
+      const full = res.ok ? await res.json() : null;
 
-    setSelectedItem(normalizedItem);
-    setEditModalOpen(true);
+      const normalizedItem: ModalMenuItem = {
+        id: item.id,
+        name: item.name,
+        image: item.image,
+        type: item.type as ModalMenuItem["type"],
+        status: item.status,
+        sizes: (full?.sizes ?? item.sizes).map((s: any) => ({
+          id: s.id,
+          label: s.label,
+          price: s.price,
+          cupId: "cupId" in s ? (s as { cupId?: number | null }).cupId ?? null : null,
+        })),
+        ingredients: {
+          small: (full?.ingredients?.small ?? []).filter((i: any) => i.ingredientId != null).map((i: any) => ({
+            ingredientId: Number(i.ingredientId),
+            quantity: Number(i.quantity),
+          })),
+          medium: (full?.ingredients?.medium ?? []).filter((i: any) => i.ingredientId != null).map((i: any) => ({
+            ingredientId: Number(i.ingredientId),
+            quantity: Number(i.quantity),
+          })),
+          large: (full?.ingredients?.large ?? []).filter((i: any) => i.ingredientId != null).map((i: any) => ({
+            ingredientId: Number(i.ingredientId),
+            quantity: Number(i.quantity),
+          })),
+        },
+      };
+
+      setSelectedItem(normalizedItem);
+      setEditModalOpen(true);
+    } catch (e) {
+      // Fallback: open with sizes only
+      const fallback: ModalMenuItem = {
+        id: item.id,
+        name: item.name,
+        image: item.image,
+        type: item.type as ModalMenuItem["type"],
+        status: item.status,
+        sizes: item.sizes.map(s => ({ id: s.id, label: s.label, price: s.price, cupId: (s as any).cupId ?? null })),
+        ingredients: { small: [], medium: [], large: [] },
+      };
+      setSelectedItem(fallback);
+      setEditModalOpen(true);
+    }
   };
 
   const handleDeleteItem = async (id: number) => {
@@ -257,9 +284,13 @@ export default function AdminMenuPage() {
                     className="object-cover w-60 h-56 rounded"
                   />
                 ) : (
-                  <div className="w-60 h-56 bg-gray-200 flex items-center justify-center text-gray-500">
-                    No Image
-                  </div>
+                  <Image
+                    src="/placeholder.svg"
+                    alt="No image"
+                    width={240}
+                    height={224}
+                    className="object-cover w-60 h-56 rounded"
+                  />
                 )}
 
                 <div className="mb-2 font-bold text-[#776B5D] text-xl truncate">{item.name}</div>

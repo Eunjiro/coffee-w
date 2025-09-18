@@ -52,7 +52,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar (expanded) */}
       <motion.aside
         initial={{ x: -300 }}
         animate={{ x: open ? 0 : -300 }}
@@ -128,6 +128,34 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           </div>
         </div>
       </motion.aside>
+
+      {/* Mini Sidebar (icons only) */}
+      <aside className="hidden lg:flex fixed top-0 left-0 z-40 h-full w-16 bg-[#776B5D] text-[#F3EEEA] flex-col items-center py-4">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="mb-4 p-2 rounded-md bg-[#B0A695] hover:bg-[#B0A695]/80"
+          aria-label="Open sidebar"
+        >
+          <LayoutDashboard className="w-5 h-5 text-[#F3EEEA]" />
+        </button>
+        <nav className="flex flex-col items-center gap-4 mt-2">
+          {menuItems.map((item) => (
+            <Link
+              key={item.path}
+              href={item.path}
+              className={`p-2 rounded-md border ${
+                pathname === item.path
+                  ? "bg-[#F3EEEA] text-[#776B5D] border-[#B0A695]"
+                  : "bg-transparent text-[#F3EEEA] hover:bg-[#B0A695]/50 border-transparent"
+              }`}
+              title={item.label}
+            >
+              <item.icon className={`w-5 h-5 ${pathname === item.path ? "text-[#776B5D]" : "text-[#F3EEEA]"}`} />
+            </Link>
+          ))}
+        </nav>
+      </aside>
     </>
   );
 }

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Menu, Search, Bell } from "lucide-react";
 
 export default function Header({ setOpen }: { setOpen: (o: boolean) => void }) {
+  const { data: session } = useSession();
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
 
@@ -25,13 +27,7 @@ export default function Header({ setOpen }: { setOpen: (o: boolean) => void }) {
     <header className="flex justify-between items-center bg-[#776B5D] shadow px-6 py-4 w-full">
       {/* Left */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => setOpen(true)}
-          className="p-2 rounded-full bg-[#B0A695]"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-        <span className="ml-1 font-bold text-[#F3EEEA] text-2xl">Coffee Win</span>
+        <span className="ml-1 font-bold text-[#F3EEEA] text-2xl">{session?.user?.name ?? ""}</span>
       </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center bg-[#F3EEEA] shadow px-4 py-2 rounded-xl w-[350px]">

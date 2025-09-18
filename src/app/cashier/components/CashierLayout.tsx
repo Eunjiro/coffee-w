@@ -37,7 +37,7 @@ export default function CashierLayout({ children }: CashierLayoutProps) {
       <CashierSidenav open={open} setOpen={setOpen} />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative">
+      <div className="flex-1 flex flex-col relative lg:ml-16">
         <Header
           setOpen={setOpen}
         />

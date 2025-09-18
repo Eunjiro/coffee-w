@@ -126,7 +126,7 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
         });
         setCupSelections(cupMap);
 
-        setIngredientsState({
+        const mappedIngredients = {
             small: item.ingredients.small.map((ing, i) => ({
                 id: `small-${i}`,
                 ingredientId: ing.ingredientId,
@@ -142,7 +142,14 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
                 ingredientId: ing.ingredientId,
                 quantity: ing.quantity.toString(),
             })),
-        });
+        } as Record<SizeKey, Ingredient[]>;
+        setIngredientsState(mappedIngredients);
+
+        setSizesState(prev => ({
+            small: prev.small || mappedIngredients.small.length > 0,
+            medium: prev.medium || mappedIngredients.medium.length > 0,
+            large: prev.large || mappedIngredients.large.length > 0,
+        }));
     }, [item]);
 
     if (!open || !form) return null;
@@ -198,6 +205,10 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
         const url = URL.createObjectURL(e.target.files[0]);
         setImagePreview(url);
         setForm((prev) => (prev ? { ...prev, image: url } : null));
+    };
+
+    const handleSizeToggle = (size: SizeKey) => {
+        setSizesState(prev => ({ ...prev, [size]: !prev[size] }));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -330,7 +341,7 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
                             onChange={e => setForm(prev => prev ? { ...prev, type: e.target.value as MenuItem['type'] } : null)}
                             options={[
                                 { label: "Coffee", value: "COFFEE" },
-                                { label: "Non-Coffee", value: "NON_COFFEE" },
+                                { label: "Non-Coffee", value: "NON-COFFEE" },
                                 { label: "Meal", value: "MEAL" },
                                 { label: "Addon", value: "ADDON" }
                             ]}
@@ -349,35 +360,44 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
                     ))}
                 </Section>
 
-                {/* Sizes at Cups / addon price */}
+                {/* Sizes & Prices / addon price */}
                 {form.type === 'ADDON' ? (
                     <Section title="Price">
                         <Input type="number" value={addonPrice} onChange={e => setAddonPrice(e.target.value)} placeholder="Price" />
                     </Section>
                 ) : (
-                    <Section title="Cups & Prices">
-                        {(["small", "medium", "large"] as SizeKey[]).map(size =>
-                            sizesState[size] && (
-                                <Section key={size} title={(size as string).charAt(0).toUpperCase() + (size as string).slice(1)}>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <select
-                                            value={cupSelections[size].cupId || ""}
-                                            onChange={e => handleCupChange(size, "cupId", e.target.value)}
-                                            className="w-full px-3 py-2 border border-[#B0A695] rounded-lg"
-                                        >
-                                            <option value="">Select Cup</option>
-                                            {cups.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                        <Input
-                                            type="number"
-                                            value={cupSelections[size].price}
-                                            onChange={e => handleCupChange(size, "price", e.target.value)}
-                                            placeholder="Price"
+                    <>
+                        <Section title="Sizes">
+                            <div className="flex gap-4">
+                                {(["small", "medium", "large"] as SizeKey[]).map(size => (
+                                    <label key={size} className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={sizesState[size]}
+                                            onChange={() => handleSizeToggle(size)}
+                                            className="rounded w-4 h-4 text-[#776B5D]"
                                         />
-                                    </div>
-                                </Section>
-                            ))}
-                    </Section>
+                                        <span className="capitalize text-[#776B5D]">{size}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </Section>
+                        <Section title="Prices">
+                            {(["small", "medium", "large"] as SizeKey[]).map(size =>
+                                sizesState[size] && (
+                                    <Section key={size} title={(size as string).charAt(0).toUpperCase() + (size as string).slice(1)}>
+                                        <div className="grid grid-cols-1 gap-4">
+                                            <Input
+                                                type="number"
+                                                value={cupSelections[size].price}
+                                                onChange={e => handleCupChange(size, "price", e.target.value)}
+                                                placeholder="Price"
+                                            />
+                                        </div>
+                                    </Section>
+                                ))}
+                        </Section>
+                    </>
                 )}
 
                 {/* Ingredients */}
@@ -393,7 +413,11 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
                                             className="w-full px-3 py-2 border border-[#B0A695] rounded-lg"
                                         >
                                             <option value="">Select Ingredient</option>
-                                            {ingredients.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
+                                            {ingredients.map(opt => (
+                                                <option key={opt.id} value={opt.id}>
+                                                    {opt.name}{opt.unit ? ` (${opt.unit})` : ""}
+                                                </option>
+                                            ))}
                                         </select>
                                         <Input
                                             type="text"
