@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Search, Bell } from "lucide-react";
-
-export default function Header() {
+export default function Header({ setOpen }: { setOpen?: React.Dispatch<React.SetStateAction<boolean>> }) {
   const { data: session } = useSession();
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
