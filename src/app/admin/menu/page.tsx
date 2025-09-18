@@ -14,11 +14,6 @@ import SearchAndFilters from "../components/ui/SearchAndFilters";
 import Image from "next/image";
 import type { IngredientOption } from "../components/modals/EditMenuModal";
 
-interface Cup {
-  id: number;
-  name: string;
-}
-
 interface IngredientInput {
   ingredientId: number;
   quantity: number;
@@ -49,7 +44,6 @@ export default function AdminMenuPage() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ModalMenuItem | null>(null);
 
-  const [cups, setCups] = useState<Cup[]>([]);
   const [ingredientOptions, setIngredientOptions] = useState<IngredientOption[]>([]);
 
   const [categories, setCategories] = useState<string[]>(["All Items", "Coffee", "Non-Coffee", "Meal", "Addon"]);
@@ -61,8 +55,7 @@ export default function AdminMenuPage() {
       fetch("/api/admin/inventory/cups").then(r => (r.ok ? r.json() : [])),
       fetch("/api/admin/inventory/ingredients").then(r => (r.ok ? r.json() : [])),
     ])
-      .then(([cupsRes, ingsRes]) => {
-        setCups(Array.isArray(cupsRes) ? cupsRes : []);
+      .then(([ingsRes]) => {
         setIngredientOptions(
           Array.isArray(ingsRes)
             ? ingsRes.map((i: { id: number; name: string; units?: { name?: string } }) => ({
@@ -74,7 +67,6 @@ export default function AdminMenuPage() {
         );
       })
       .catch(() => {
-        setCups([]);
         setIngredientOptions([]);
       });
   }, []);
@@ -127,7 +119,7 @@ export default function AdminMenuPage() {
 
       setSelectedItem(normalizedItem);
       setEditModalOpen(true);
-    } catch (e) {
+  } catch (_e) {
       // Fallback: open with sizes only
       const fallback: ModalMenuItem = {
         id: item.id,
@@ -135,7 +127,7 @@ export default function AdminMenuPage() {
         image: item.image,
         type: item.type as ModalMenuItem["type"],
         status: item.status,
-        sizes: item.sizes.map(s => ({ id: s.id, label: s.label, price: s.price, cupId: (s as any).cupId ?? null })), // Ensure the types match for `cupId`
+  sizes: item.sizes.map(s => ({ id: s.id, label: s.label, price: s.price, cupId: (s as Size).cupId ?? null })), // Ensure the types match for `cupId`
         ingredients: { small: [], medium: [], large: [] },
       };
       setSelectedItem(fallback);
@@ -352,7 +344,6 @@ export default function AdminMenuPage() {
           onClose={() => setEditModalOpen(false)}
           onSave={handleSaveItem}
           onDelete={handleDeleteItem}
-          cups={cups}
           ingredients={ingredientOptions}
         />
       </div>

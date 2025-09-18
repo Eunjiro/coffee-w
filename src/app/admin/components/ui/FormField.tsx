@@ -1,12 +1,11 @@
 import React, { useId } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
-// FormField component with children typed as ReactElement to handle cloning safely
 interface FormFieldProps {
   label: string;
   error?: string;
   required?: boolean;
-  children: React.ReactElement;  // Ensure children is a React element (not just ReactNode)
+  children: React.ReactElement | React.ReactNode;
   className?: string;
 }
 
@@ -20,13 +19,19 @@ const FormField: React.FC<FormFieldProps> = ({
   const autoId = useId();
   const fieldId = `ff-${autoId}`;
 
-  // Ensure children is a valid React element that can accept 'id' and 'aria-labelledby'
-  const child = React.isValidElement(children)
-    ? React.cloneElement(children as React.ReactElement<any>, {
-        id: (children as any).props?.id ?? fieldId,
-        'aria-labelledby': `${fieldId}-label`,
-      })
-    : children;
+  // If `children` is a valid React element, clone it and ensure it has an `id` and `aria-labelledby`.
+  // Narrow the child to a ReactElement with unknown props to avoid using `any`.
+  let child: React.ReactNode;
+  if (React.isValidElement(children)) {
+    const childElement = children as React.ReactElement<Record<string, unknown>, any>;
+    const existingId = (childElement.props as { id?: string }).id;
+    child = React.cloneElement(childElement, {
+      id: existingId ?? fieldId,
+      'aria-labelledby': `${fieldId}-label`,
+    });
+  } else {
+    child = children;
+  }
 
   return (
     <div className={`space-y-2 ${className}`}>
@@ -41,7 +46,6 @@ const FormField: React.FC<FormFieldProps> = ({
   );
 };
 
-// Input Component
 interface InputProps {
   type?: string;
   value: string;
@@ -90,7 +94,6 @@ export const Input: React.FC<InputProps> = ({
   );
 };
 
-// Select Component
 interface SelectProps {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
@@ -144,7 +147,6 @@ export const Select: React.FC<SelectProps> = ({
   );
 };
 
-// Textarea Component
 interface TextareaProps {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
