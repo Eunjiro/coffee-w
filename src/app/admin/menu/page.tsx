@@ -119,7 +119,7 @@ export default function AdminMenuPage() {
 
       setSelectedItem(normalizedItem);
       setEditModalOpen(true);
-  } catch (_e) {
+  } catch {
       // Fallback: open with sizes only
       const fallback: ModalMenuItem = {
         id: item.id,

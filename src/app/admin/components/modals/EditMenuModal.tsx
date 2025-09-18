@@ -388,9 +388,9 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
         {/* Ingredients */}
         {form.type !== 'ADDON' && (
           <Section title="Ingredients">
-            {["small", "medium", "large"].map(size => (sizesState as any)[size] && (
-              <Section key={size} title={(size as string).charAt(0).toUpperCase() + (size as string).slice(1)}>
-                {(ingredientsState as any)[size].map((ing: any, i: number) => (
+            {(["small", "medium", "large"] as SizeKey[]).map(size => sizesState[size] && (
+                <Section key={size} title={(size as string).charAt(0).toUpperCase() + (size as string).slice(1)}>
+                  {ingredientsState[size].map((ing: Ingredient, i: number) => (
                   <div key={ing.id} className="grid grid-cols-2 gap-4 mb-2">
                     <select
                       value={ing.ingredientId}
@@ -412,7 +412,7 @@ const EditMenuModal: React.FC<EditMenuModalProps> = ({
                     />
                   </div>
                 ))}
-                <button type="button" onClick={() => handleAddIngredient(size as any)} className="flex items-center gap-1 mt-2 text-sm text-[#776B5D] hover:text-[#776B5D]/80">
+                <button type="button" onClick={() => handleAddIngredient(size as SizeKey)} className="flex items-center gap-1 mt-2 text-sm text-[#776B5D] hover:text-[#776B5D]/80">
                   <Plus size={16} /> Add Ingredient
                 </button>
               </Section>

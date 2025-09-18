@@ -23,7 +23,7 @@ const FormField: React.FC<FormFieldProps> = ({
   // Narrow the child to a ReactElement with unknown props to avoid using `any`.
   let child: React.ReactNode;
   if (React.isValidElement(children)) {
-    const childElement = children as React.ReactElement<Record<string, unknown>, any>;
+  const childElement = children as React.ReactElement<Record<string, unknown>>;
     const existingId = (childElement.props as { id?: string }).id;
     child = React.cloneElement(childElement, {
       id: existingId ?? fieldId,

@@ -17,7 +17,7 @@ type RecentOrder = {
   users: { name: string };
 };
 
-export async function GET(_req: Request) {
+export async function GET() {
 
   const now = new Date();
 

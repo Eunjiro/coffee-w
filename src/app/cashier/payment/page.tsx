@@ -98,7 +98,7 @@ const Payment: React.FC<PaymentProps> = ({ orderItems: propOrderItems, onBack: p
     const [selectedLoyaltyMember, setSelectedLoyaltyMember] = useState<LoyaltyMember | null>(null);
     const [loyaltySearchResults, setLoyaltySearchResults] = useState<LoyaltyMember[]>([]);
     const [addonData, setAddonData] = useState<Addon[]>([]);
-    const [selectedRewards, setSelectedRewards] = useState<Reward[]>([]);
+    const [selectedRewards] = useState<Reward[]>([]);
 
     // --- Load cart from sessionStorage ---
     useEffect(() => {
